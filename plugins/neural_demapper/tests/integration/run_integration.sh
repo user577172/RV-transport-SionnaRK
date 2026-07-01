@@ -15,11 +15,21 @@ CONFIG_NAME="${CONFIG_NAME:-testing}"
 # Detect platform for GPU monitoring method
 SRK_PLATFORM="${SRK_PLATFORM:-$("$REPO_ROOT/scripts/detect_host.sh" 2>/dev/null || echo "Unknown")}"
 
+# Note: AGX Thor is intentionally NOT a "jetson" platform here. This predicate
+# gates the Jetson GPU-load monitoring method (tegrastats/jtop), which is
+# unreliable on Thor; Thor-specific handling lives solely in is_thor_platform().
 is_jetson_platform() {
     case "$SRK_PLATFORM" in
-        "AGX Orin"|"Orin Nano Super"|"AGX Thor") return 0 ;;
+        "AGX Orin"|"Orin Nano Super") return 0 ;;
         *) return 1 ;;
     esac
+}
+
+# AGX Thor lacks a reliable way to measure GPU load (tegrastats GR3D_FREQ is not
+# dependable and there is no per-process GPU query), so the GPU-load check is
+# skipped on Thor to avoid false failures.
+is_thor_platform() {
+    [ "$SRK_PLATFORM" = "AGX Thor" ]
 }
 
 check_gpu_jetson() {
@@ -74,10 +84,13 @@ echo "Neural Demapper Integration Test (config: $CONFIG_NAME)"
 # Change to common config directory for docker-compose
 cd "$COMMON_CONFIG_DIR"
 
+IPERF_OUT=""
+
 cleanup() {
     RET=$?
     echo "Cleaning up..."
     docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+    [ -n "$IPERF_OUT" ] && rm -f "$IPERF_OUT"
 
     if [ $RET -ne 0 ]; then
         echo "❌ Test failed."
@@ -128,8 +141,9 @@ echo "✅ UE connected: $UE_IP"
 # Run iperf3 uplink test in background
 # Increased duration to allow time for GPU check
 IPERF_DURATION=15
+IPERF_OUT="$(mktemp -t iperf_out.XXXXXX)"
 echo "Running iperf3 test ($IPERF_DURATION s, 10M bandwidth)..."
-docker exec oai-nr-ue iperf3 -u -t $IPERF_DURATION -i 1 -b 10M -B 12.1.1.2 -c 192.168.72.135 > /tmp/iperf_out.txt 2>&1 &
+docker exec oai-nr-ue iperf3 -u -t $IPERF_DURATION -i 1 -b 10M -B 12.1.1.2 -c 192.168.72.135 > "$IPERF_OUT" 2>&1 &
 IPERF_PID=$!
 
 # Check GPU load while iperf is running
@@ -137,6 +151,9 @@ echo "Checking GPU usage (platform: $SRK_PLATFORM)..."
 SOFTMODEM_DETECTED=false
 
 for i in {1..5}; do
+    if is_thor_platform; then
+        break
+    fi
     if is_jetson_platform; then
         if check_gpu_jetson; then
             SOFTMODEM_DETECTED=true
@@ -165,10 +182,26 @@ done
 
 # Wait for iperf to finish
 wait $IPERF_PID || true
-IPERF_OUTPUT=$(cat /tmp/iperf_out.txt)
+IPERF_OUTPUT=$(cat "$IPERF_OUT")
 echo "$IPERF_OUTPUT"
 
 # Validate Results
+
+# 0. TensorRT engine errors
+# The TRT plugins now fail gracefully (no crash) when the .plan is missing or
+# was built with an incompatible TensorRT version: the gNB keeps running and
+# inference is skipped. That means the run can otherwise look healthy while the
+# neural demapper does nothing. Detect those errors explicitly so the test does
+# not pass with a broken/unloaded engine. The engine loads lazily on the first
+# demap, so this check runs after traffic has exercised it.
+TRT_ERRORS=$(docker logs oai-gnb 2>&1 | grep -iE \
+    "failed to deserialize engine|no engine available|execution context unavailable|deserializeCudaEngine: Error Code|Version tag does not match" || true)
+if [[ -n "$TRT_ERRORS" ]]; then
+    echo "❌ TensorRT engine errors detected (plan missing or incompatible):"
+    echo "$TRT_ERRORS" | sed 's/^/    /'
+    exit 1
+fi
+echo "✅ No TensorRT engine load errors"
 
 # 1. iperf traffic
 if echo "$IPERF_OUTPUT" | grep -q "sender"; then
@@ -178,7 +211,9 @@ else
 fi
 
 # 2. GPU Load
-if [ "$SOFTMODEM_DETECTED" = "true" ]; then
+if is_thor_platform; then
+    echo "⏭️  Skipping GPU load check on AGX Thor (no reliable GPU load metric available)"
+elif [ "$SOFTMODEM_DETECTED" = "true" ]; then
     echo "✅ GPU load from softmodem verified"
 else
     echo "❌ No GPU load detected from softmodem"

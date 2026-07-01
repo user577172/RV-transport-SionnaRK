@@ -10,6 +10,7 @@ configs/**/docker-compose.override.yaml
 **/demapper_in.txt
 **/demapper_out.txt
 *.csv
+!plugins/link_adaptation/data/AWGN_results/*.csv
 *.pdf
 **/link_adaptation/.old
 .vscode/settings.json
@@ -17,11 +18,13 @@ plugins/ldpc_cuda/build
 plugins/ldpc_cuda/test/*.so
 ext/
 env/
+.env/
 **/.venv/
 .vscode/
 **/results/data/*
 !doc/source/plugins/link_adaptation/**/*.pdf
 plugins/ldpc_cuda/src/runtime/build/*
 *.plan
+*.fp16.onnx
 *.log
 **/build/

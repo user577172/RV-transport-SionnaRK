@@ -81,7 +81,7 @@ struct Logger : public ILogger
     }
 } logger;
 
-static std::string trt_weight_file = "plugins/neural_demapper/models/neural_demapper_qam16.plan";
+static std::string trt_weight_file = "plugins/neural_demapper/models/neural_demapper.2xfloat16.plan";
 static bool trt_normalized_inputs = true;
 
 extern "C" void trt_demapper_configure(char const* weight_file, int normalized_inputs) {
@@ -95,6 +95,15 @@ void trt_demapper_run(TRTContext* context_, cudaStream_t stream, __half const* i
     auto& context = context_ ? *context_ : trt_demapper_init_context(0);
     if (context_ && stream == 0)
         stream = context_->default_stream;
+
+    // Fail gracefully if the engine/execution context never came up (e.g. the
+    // plan failed to deserialize). Without this, the calls below dereference a
+    // null execution context and segfault.
+    if (!context.trt) {
+        fprintf(stderr, "TensorRT: execution context unavailable; skipping demapper inference\n");
+        fflush(stderr);
+        return;
+    }
 
     if (inputs) {
         context.trt->setTensorAddress("y", (void*) inputs);
@@ -216,6 +225,15 @@ extern "C" void trt_demapper_decode(TRTContext* context_, cudaStream_t stream, i
     if (context_ && stream == 0)
         stream = context_->default_stream;
 
+    // Fail gracefully if the engine/execution context never came up. The block
+    // loop below writes into context device buffers that are only allocated
+    // once the context is valid, so bail out before touching them.
+    if (!context.trt) {
+        fprintf(stderr, "TensorRT: execution context unavailable; skipping demapper decode\n");
+        fflush(stderr);
+        return;
+    }
+
     struct timespec ts_begin, ts_end;
     unsigned long long time_ns;
 #ifdef PERSISTENT_DEVICE_MEMORY
@@ -306,6 +324,14 @@ TRTContext& trt_demapper_init_context(int make_stream) {
         return context;
 
     printf("Initializing TRT context (TID %d)\n", (int) gettid());
+    // Guard against a null engine (failed/incompatible plan). Calling a method
+    // on a null engine here is what previously segfaulted the process. Leave
+    // context.trt as nullptr so callers skip inference gracefully.
+    if (!engine) {
+        fprintf(stderr, "TensorRT: no engine available; cannot create execution context\n");
+        fflush(stderr);
+        return context;
+    }
 #if NV_TENSORRT_MAJOR >= 10
     context.trt = engine->createExecutionContext(ExecutionContextAllocationStrategy::kSTATIC);
 #else
@@ -399,6 +425,12 @@ extern "C" TRTContext* trt_demapper_init(int make_stream) {
     printf("Loading TRT engine %s (normalized inputs: %d)\n", trt_weight_file.c_str(), trt_normalized_inputs);
     std::vector<char> modelData = readModelFromFile(trt_weight_file.c_str());
     engine = runtime->deserializeCudaEngine(modelData.data(), modelData.size());
+    if (!engine) {
+        fprintf(stderr, "TensorRT: failed to deserialize engine from '%s' "
+                        "(missing, empty, or built with an incompatible TensorRT version)\n",
+                trt_weight_file.c_str());
+        fflush(stderr);
+    }
 
 #ifdef ENABLE_NANOBIND
     // automatic shutdown before TensorRT module is torn down (note: in initialization sequence after createInferRuntime!)

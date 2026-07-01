@@ -4,7 +4,7 @@ Part 2: CUDA Implementation
 ===========================
 
 .. _fig_acceleration:
-.. figure:: ../../figs/inline_vs_lookaside.png
+.. figure:: ../../../doc/source/figs/inline_vs_lookaside.png
    :align: center
    :width: 500px
    :alt: Inline vs Lookaside Acceleration
@@ -25,7 +25,7 @@ Overview
 --------
 
 .. _fig_ldpc_kernel:
-.. figure:: ../../figs/tutorial_ldpc_kernel.png
+.. figure:: ../../../doc/source/figs/tutorial_ldpc_kernel.png
    :align: center
    :width: 500px
    :alt: LDPC Acceleration Overview
@@ -39,7 +39,7 @@ The *pack_bits_kernel(.)* kernel maps the soft-values to hard-decided bits and p
 CUDA Integration in OAI
 -----------------------
 
-The LDPC decoder is implemented as `shared library <https://github.com/OPENAIRINTERFACE/openairinterface5g/blob/develop/openair1/PHY/CODING/DOC/LDPCImplementation.md>`_ that can be loaded using the `OAI shared library loader <https://gitlab.eurecom.fr/oai/openairinterface5g/blob/develop/common/utils/DOC/loader.md>`_.
+The LDPC decoder is implemented as a `shared library <https://github.com/OPENAIRINTERFACE/openairinterface5g/blob/develop/openair1/PHY/CODING/DOC/LDPCImplementation.md>`_ that can be loaded using the `OAI shared library loader <https://gitlab.eurecom.fr/oai/openairinterface5g/blob/develop/common/utils/DOC/loader.md>`_.
 The implementation is in ``plugins/ldpc_cuda/src/runtime/ldpc_decoder.cu``. After modifying it, rebuild the Docker images:
 
 .. code-block:: bash

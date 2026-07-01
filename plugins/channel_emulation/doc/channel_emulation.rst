@@ -3,7 +3,7 @@
 Real-time Channel Emulator
 ==========================
 
-.. figure:: /figs/gtc_demo_overview.png
+.. figure:: ../../../doc/source/figs/gtc_demo_overview.png
    :align: center
    :width: 600px
    :alt: Channel Emulator Demo Overview
@@ -14,7 +14,7 @@ Testing AI/ML algorithms under realistic channel conditions is essential for eva
 The CUDA channel emulator applies channel impulse responses (CIRs) to IQ samples in real time, simulating signal propagation as if the user were located in a specific digital twin environment.
 As shown in :numref:`fig:chemu_overview`, this works with both USRP hardware -- using the O-RAN split 8 option -- and rfsim mode, providing consistent conditions between fully simulated and real RF setups.
 
-.. figure:: /figs/chemu_overview.png
+.. figure:: ../../../doc/source/figs/chemu_overview.png
     :align: center
     :name: fig:chemu_overview
     :width: 600px
@@ -24,20 +24,20 @@ As shown in :numref:`fig:chemu_overview`, this works with both USRP hardware -- 
 
 The channel emulation plugin supports two modes:
 
-- **File-based**: Load pre-computed CIRs from disk, e.g., pre-computed and exported from the `Sionna RT GUI <https://github.com/NVlabs/sionna-rt-gui>`_.
-- **ZMQ-based**: Receive CIRs at runtime via ZeroMQ streaming from the Sionna RT GUI or custom applications. This mode is well suited for live demos and closed-loop control scenarios. For higher UE velocities, ray tracing update rates may become a bottleneck; in such cases the file-based mode is recommended.
+- **File-based**: Load pre-computed CIRs from disk, e.g., pre-computed and exported from the `SionnaRT GUI <https://github.com/NVlabs/sionna-rt-gui>`_.
+- **ZMQ-based**: Receive CIRs at runtime via ZeroMQ streaming from the SionnaRT GUI or custom applications. This mode is well suited for live demos and closed-loop control scenarios. For higher UE velocities, ray tracing update rates may become a bottleneck; in such cases the file-based mode is recommended.
 
-The :ref:`ric_xapps` stats server can be used to visualize UE statistics (MCS, BLER) alongside the channel emulation. This is also integrated into the Sionna RT GUI.
+The :ref:`ric_xapps` stats server can be used to visualize UE statistics (MCS, BLER) alongside the channel emulation. This is also integrated into the SionnaRT GUI.
 
 .. note::
 
-   The channel emulator works best with the `Sionna RT GUI <https://github.com/NVlabs/sionna-rt-gui>`_ to generate and export CIRs. It is automatically installed when you install the requirements.txt file, and can be started via:
+   The channel emulator works best with the `SionnaRT GUI <https://github.com/NVlabs/sionna-rt-gui>`_ to generate and export CIRs. It is automatically installed when you install the requirements.txt file, and can be started via:
 
    .. code-block:: bash
 
       sionna-rt-gui --priority --config <config.yaml>
 
-   The GUI uses NVIDIA MPS, which is required when real-time ray tracing runs concurrently with other CUDA plugins on the GPU (see `NVIDIA MPS`_). The active thread percentage can be configured via the ``MPS_ACTIVE_THREAD_PCT`` environment variable (default: 40%). The scripts ./scripts/start_mps.sh and ./scripts/stop_mps.sh can be used to start (and stop) MPS before starting the gNB and the GUI.
+   The GUI uses NVIDIA MPS, which is required when real-time ray tracing runs concurrently with other CUDA plugins on the GPU (see :ref:`nvidia_mps`). The active thread percentage can be configured via the ``MPS_ACTIVE_THREAD_PCT`` environment variable (default: 40%). The scripts ./scripts/start_mps.sh and ./scripts/stop_mps.sh can be used to start (and stop) MPS before starting the gNB and the GUI.
 
 
 .. note::
@@ -47,11 +47,12 @@ The :ref:`ric_xapps` stats server can be used to visualize UE statistics (MCS, B
 Running the GTC DC 2025 Demo
 ----------------------------
 
-The channel emulation demo shown at `GTC DC 2025 <https://developer.nvidia.com/blog/powering-ai-native-6g-research-with-the-nvidia-sionna-research-kit/>`_ can be reproduced using the provided demo script. It starts the full 5G network in rfsim mode with the ZMQ-based channel emulator, connects the UE, launches iperf3 traffic, and optionally starts the Sionna RT GUI:
+The channel emulation demo shown at `GTC DC 2025 <https://developer.nvidia.com/blog/powering-ai-native-6g-research-with-the-nvidia-sionna-research-kit/>`_ can be reproduced using the provided demo script. It starts the full 5G network in rfsim mode with the ZMQ-based channel emulator, connects the UE, launches iperf3 traffic, and optionally starts the SionnaRT GUI:
 
 .. code-block:: bash
+
    # enable the channel emulator in config/rfsim/.env file
-   # ZMQ-based CIR (interactive, use with Sionna RT GUI)
+   # ZMQ-based CIR (interactive, use with SionnaRT GUI)
    GNB_EXTRA_OPTIONS="--cir-zmq-num-taps 48"
 
    # Start MPS
@@ -66,7 +67,7 @@ The channel emulation demo shown at `GTC DC 2025 <https://developer.nvidia.com/b
    # stop MPS when done
    ./scripts/stop_mps.sh
 
-The script activates the :ref:`ric_xapps` stats server (`monitor_xapp`), which streams MAC-layer statistics (MCS, BLER, PRB usage) via ZMQ to the Sionna RT GUI for live visualization.
+The script activates the :ref:`ric_xapps` stats server (`monitor_xapp`), which streams MAC-layer statistics (MCS, BLER, PRB usage) via ZMQ to the SionnaRT GUI for live visualization.
 
 For simplicity, this uses the rfsim mode as default. However, you can also connect the Quectel modem by selecting the `b200` config file in the demo script and set the environment variables accordingly.
 
@@ -81,11 +82,11 @@ To observe meaningful UE statistics, iperf3 traffic must be running on the UE. T
    # start iperf3
    iperf3 -t 86400 -i 1 -B 12.1.1.2 -c 192.168.72.135 -R
 
-The default configuration file ``spark_quectel.yaml`` mentioned earlier is shipped with the Sionna RT GUI and is located in the ``<venv>/lib/python3.12/site-packages/sionna_rt_gui/data/configs/sionna_rt_gui/`` directory. You can copy it to your local directory and edit as needed.
+The default configuration file ``spark_quectel.yaml`` mentioned earlier is shipped with the SionnaRT GUI and is located in the ``<venv>/lib/python3.12/site-packages/sionna_rt_gui/data/configs/sionna_rt_gui/`` directory. You can copy it to your local directory and edit as needed.
 
 .. note::
 
-   The Sionna RT GUI requires RT cores for real-time ray tracing and is designed for DGX Spark. On Jetson platforms, the GUI can run on a separate CUDA-enabled host machine; just forward ports 5555 (stats ZMQ) and 5556 (CIR ZMQ) to the Jetson via ssh port forwarding.
+   The SionnaRT GUI requires RT cores for real-time ray tracing and is designed for DGX Spark. On Jetson platforms, the GUI can run on a separate CUDA-enabled host machine; just forward ports 5555 (stats ZMQ) and 5556 (CIR ZMQ) to the Jetson via ssh port forwarding.
 
 Configuration
 -------------
@@ -109,15 +110,17 @@ These options are set in the ``.env`` file for your configuration (e.g., ``confi
 - ``--cir-folder``: Folder containing ``config.json`` and ``cirs.bin`` (file mode only).
 - ``--cir-zmq-num-taps``: Number of CIR taps (ZMQ mode only).
 
-A new CIR folder can be generated with the Sionna RT GUI, and then copied to the OAI `plugins/channel_emulation/` directory.
+A new CIR folder can be generated with the SionnaRT GUI, and then copied to the OAI `plugins/channel_emulation/` directory.
 
 By default, the pass-through CIR folder is used (``plugins/channel_emulation/data/pass_through_cir``), which applies no distortion to the signal and is useful for verifying the setup.
 
 
+.. _nvidia_mps:
+
 NVIDIA MPS
 ----------
 
-When running the Sionna RT GUI alongside the gNB, `NVIDIA Multi-Process Service (MPS) <https://docs.nvidia.com/deploy/mps/index.html>`_ is recommended to share the GPU between the ray tracer and the gNB process. Without MPS, these processes are time-sliced, which introduces latency spikes incompatible with the strict real-time requirements of the gNB. Note that the primary reason for MPS is the co-existence of the ray tracing and the gNB process; the individual CUDA plugins within the gNB are less of a concern since they run within the same process.
+When running the SionnaRT GUI alongside the gNB, `NVIDIA Multi-Process Service (MPS) <https://docs.nvidia.com/deploy/mps/index.html>`_ is recommended to share the GPU between the ray tracer and the gNB process. Without MPS, these processes are time-sliced, which introduces latency spikes incompatible with the strict real-time requirements of the gNB. Note that the primary reason for MPS is the co-existence of the ray tracing and the gNB process; the individual CUDA plugins within the gNB are less of a concern since they run within the same process.
 
 MPS must be started **before** launching the gNB. The ``./scripts/start_mps.sh`` script handles this automatically:
 
@@ -137,7 +140,7 @@ The default active thread percentage is 40%, balancing GPU resources between the
 File-Based CIR Source
 ---------------------
 
-CIR data can be exported directly from the `Sionna RT GUI <https://github.com/NVlabs/sionna-rt-gui>`_ and placed into the ``plugins/channel_emulation/`` directory for use with the file loader.
+CIR data can be exported directly from the `SionnaRT GUI <https://github.com/NVlabs/sionna-rt-gui>`_ and placed into the ``plugins/channel_emulation/`` directory for use with the file loader.
 
 The file loader (``plugins/channel_emulation/file_loader/``) reads pre-computed CIRs from a folder containing two files:
 
@@ -202,7 +205,7 @@ Supported message types are:
 - ``cir``: Push new CIR taps and noise parameters.
 
 The ZMQ source initializes with sensible defaults (pass-through channel) and updates CIRs as messages arrive.
-This is the recommended mode for interactive use with the Sionna RT GUI, which streams CIRs based on the simulated scene. The GUI can run on the same machine (e.g., DGX Spark) or on a remote machine connected over Ethernet.
+This is the recommended mode for interactive use with the SionnaRT GUI, which streams CIRs based on the simulated scene. The GUI can run on the same machine (e.g., DGX Spark) or on a remote machine connected over Ethernet.
 
 Technical Background
 --------------------
@@ -216,7 +219,7 @@ The CUDA channel emulator applies channel impulse responses (CIRs) to data sampl
 
 Here, :math:`y[n]` is the :math:`n`-th output sample, :math:`h_s[\ell]` is the tap coefficient at delay :math:`\ell` for OFDM symbol :math:`s`, :math:`x[n-\ell]` is the corresponding input sample, :math:`\sigma_s` is the noise standard deviation for OFDM symbol :math:`s`, :math:`w[n]` is a random normally distributed noise sample, and :math:`L` is the number of taps in the CIR.
 
-.. figure:: /figs/ofdm_symbols.png
+.. figure:: ../../../doc/source/figs/ofdm_symbols.png
     :name: fig:ofdm_symbols
     :scale: 25 %
     :align: center
@@ -249,14 +252,14 @@ Like other plugins, the CUDA channel emulator is provided as a shared library, l
 
 The radio unit (RU) invokes the channel emulator to apply CIRs to data samples immediately after reading them from the RF frontend (uplink), and just before writing them to the RF frontend (downlink).
 
-.. figure:: /figs/oai_flow_ul.png
+.. figure:: ../../../doc/source/figs/oai_flow_ul.png
     :name: fig:oai_flow_ul
     :scale: 25 %
     :align: center
 
     Uplink processing flow with CUDA channel emulator.
 
-.. figure:: /figs/oai_flow_dl.png
+.. figure:: ../../../doc/source/figs/oai_flow_dl.png
     :name: fig:oai_flow_dl
     :scale: 25 %
     :align: center

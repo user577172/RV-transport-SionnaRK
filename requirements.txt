@@ -1,11 +1,13 @@
-sionna < 2.0
+sionna >= 2.0
+torch >= 2.9
 numpy
 matplotlib
 nanobind
 onnx
-tf2onnx
+onnxscript
 pytest
 tensorrt
+nvidia-modelopt[onnx]
 pyzmq
 pyyaml
 sionna-rt-gui @ git+https://github.com/NVlabs/sionna-rt-gui.git@srk-channel-emulator

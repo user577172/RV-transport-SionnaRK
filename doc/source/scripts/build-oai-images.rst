@@ -72,4 +72,4 @@ EXAMPLES
 SEE ALSO
 ========
 
-:doc:`quickstart-oai.sh </scripts/quickstart-oai>`, :doc:`start-system.sh </scripts/start-system>`
+:doc:`quickstart-oai.sh <quickstart-oai>`, :doc:`start_system.sh <start-system>`

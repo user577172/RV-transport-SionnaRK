@@ -11,6 +11,18 @@ import tempfile
 import os
 from pathlib import Path
 
+import numpy as np
+
+
+# Seed numpy before every test so the randomly generated inputs are
+# deterministic and the tests are reproducible run-to-run. These tests compare
+# against exact references (or just check for non-zero output), so seeding does
+# not change behavior; it only removes any run-to-run variability.
+@pytest.fixture(autouse=True)
+def _seed_rng():
+    np.random.seed(0xC0FFEE)
+
+
 @pytest.fixture(scope="session")
 def compiled_modules():
     """

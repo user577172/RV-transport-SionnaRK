@@ -3,7 +3,7 @@
 Plugins & Data Acquisition
 ==========================
 
-.. figure:: ../../figs/tutorial_capture_overview.png
+.. figure:: ../../../doc/source/figs/tutorial_capture_overview.png
    :align: center
    :width: 600px
    :alt: Data capture overview
@@ -80,7 +80,7 @@ Step 1: Define the Plugin Interface
 
 Each plugin type needs an interface definition. The demapper interface is defined in `plugins/data_acquisition/src/nr_demapper_extern.h <https://github.com/NVlabs/sionna-rk/blob/main/plugins/data_acquisition/src/nr_demapper_extern.h>`_:
 
-.. literalinclude:: ../../../../plugins/data_acquisition/src/nr_demapper_extern.h
+.. literalinclude:: ../src/nr_demapper_extern.h
    :language: c
    :start-after: START marker-plugin-extern
    :end-before: END marker-plugin-extern
@@ -98,12 +98,12 @@ Step 2: Implement the Plugin Functions
 
 Your plugin must export functions matching the above interface. Here's the capture plugin's initialization and shutdown functions from `plugins/data_acquisition/src/nr_demapper_capture.c <https://github.com/NVlabs/sionna-rk/blob/main/plugins/data_acquisition/src/nr_demapper_capture.c>`_:
 
-.. literalinclude:: ../../../../plugins/data_acquisition/src/nr_demapper_capture.c
+.. literalinclude:: ../src/nr_demapper_capture.c
    :language: c
    :start-after: START marker-capture-init
    :end-before: END marker-capture-init
 
-.. literalinclude:: ../../../../plugins/data_acquisition/src/nr_demapper_capture.c
+.. literalinclude:: ../src/nr_demapper_capture.c
    :language: c
    :start-after: START marker-capture-shutdown
    :end-before: END marker-capture-shutdown
@@ -111,7 +111,7 @@ Your plugin must export functions matching the above interface. Here's the captu
 The main processing function is implemented in `plugins/data_acquisition/src/nr_demapper_capture.c <https://github.com/NVlabs/sionna-rk/blob/main/plugins/data_acquisition/src/nr_demapper_capture.c>`_:
 
 
-.. literalinclude:: ../../../../plugins/data_acquisition/src/nr_demapper_capture.c
+.. literalinclude:: ../src/nr_demapper_capture.c
    :language: c
    :start-after: START marker-capture-compute-llr
    :end-before: END marker-capture-compute-llr
@@ -124,7 +124,7 @@ Step 3: Create the Plugin Loader
 
 In order to load the plugin, we need to create a loader function that maps function names to symbols in your shared library. This is done in `plugins/data_acquisition/src/nr_demapper_load.c <https://github.com/NVlabs/sionna-rk/blob/main/plugins/data_acquisition/src/nr_demapper_load.c>`_:
 
-.. literalinclude:: ../../../../plugins/data_acquisition/src/nr_demapper_load.c
+.. literalinclude:: ../src/nr_demapper_load.c
    :language: c
    :start-after: START marker-capture-load
    :end-before: END marker-capture-load
@@ -136,7 +136,7 @@ Step 4: Register the Plugin
 
 Add your plugin to the central plugin system in ``plugins/common/src/plugins.c``:
 
-.. literalinclude:: ../../../../plugins/common/src/plugins.c
+.. literalinclude:: ../../common/src/plugins.c
    :language: c
    :start-after: START marker-plugins
    :end-before: END marker-plugins
@@ -148,7 +148,7 @@ Step 5: Hook into OAI Code
 
 Finally, the OAI code must call your plugin instead of the original function. We patch the function `nr_ulsch_llr_computation.c <https://github.com/OPENAIRINTERFACE/openairinterface5g/blob/develop/openair1/PHY/NR_TRANSPORT/nr_ulsch_llr_computation.c>`_ in the OpenAirInterface codebase to add this hook:
 
-.. literalinclude:: ../../../../ext/openairinterface5g/openair1/PHY/NR_TRANSPORT/nr_ulsch_llr_computation.c
+.. literalinclude:: ../../../../openairinterface5g/openair1/PHY/NR_TRANSPORT/nr_ulsch_llr_computation.c
    :language: c
    :start-after: START marker-compute-llr-start
    :end-before: END marker-compute-llr-end

@@ -79,4 +79,4 @@ EXAMPLES
 SEE ALSO
 ========
 
-:doc:`start-system.sh </scripts/start-system>`, :doc:`build-oai-images.sh </scripts/build-oai-images>`
+:doc:`start_system.sh <start-system>`, :doc:`build-oai-images.sh <build-oai-images>`

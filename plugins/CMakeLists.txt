@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Sionna Research Kit - plugins Build Configuration
@@ -32,9 +32,15 @@ if (ENABLE_CUDA)
   add_subdirectory(channel_emulation)
 endif ()
 add_subdirectory(data_acquisition)
+add_subdirectory(link_adaptation)
+
+# ASN.1 include paths needed by MAC plugin headers (link_adaptation)
+include_directories(${CMAKE_BINARY_DIR}/openair2/RRC/NR/MESSAGES)
+include_directories(${CMAKE_BINARY_DIR}/openair2/RRC/LTE/MESSAGES)
+include_directories(${CMAKE_BINARY_DIR})
 
 # Build plugins plugin library with all sources
-add_library(plugins_plugins STATIC ${PLUGINS_SRC})
-add_dependencies(plugins_plugins generate_T)
+add_library(plugins_plugins STATIC ${PLUGINS_SRC} common/src/mac_plugins.c ${MAC_PLUGINS_SRC})
+add_dependencies(plugins_plugins generate_T asn1_nr_rrc_hdrs gen_nr_rrc_hdrs asn1_lte_rrc_hdrs gen_lte_rrc_hdrs)
 target_link_libraries(nr-uesoftmodem PUBLIC plugins_plugins)
 target_link_libraries(nr-softmodem PUBLIC plugins_plugins)

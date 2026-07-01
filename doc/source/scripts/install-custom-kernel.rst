@@ -73,4 +73,4 @@ EXAMPLES
 SEE ALSO
 ========
 
-:doc:`build-custom-kernel </scripts/build-custom-kernel>`
+:doc:`build-custom-kernel <build-custom-kernel>`

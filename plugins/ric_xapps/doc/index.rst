@@ -3,7 +3,7 @@
 RAN Intelligent Controller (RIC) & xApps
 =========================================
 
-.. figure:: ../../figs/5g_stack.png
+.. figure:: ../../../doc/source/figs/5g_stack.png
    :align: center
    :alt: 5G Stack Overview
 
@@ -59,7 +59,7 @@ This xApp monitors the Modulation and Coding Scheme (MCS) and Block Error Rate (
 
 The complete implementation can be found in ``plugins/ric_xapps/src/monitor_mcs.py``:
 
-.. literalinclude:: ../../../../plugins/ric_xapps/src/monitor_mcs.py
+.. literalinclude:: ../src/monitor_mcs.py
    :language: python
    :start-after: [DOC_START]
    :end-before: [DOC_END]

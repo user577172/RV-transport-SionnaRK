@@ -1,0 +1,1 @@
+../../../../ext/openairinterface5g/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_uci.c

@@ -129,6 +129,14 @@ void trt_receiver_run(TRTContext* context_, cudaStream_t stream,
     auto& context = context_ ? *context_ : trt_receiver_init_context(0);
     if (context_ && stream == 0)
         stream = context_->default_stream;
+    // Fail gracefully if the engine/execution context never came up (e.g. the
+    // plan failed to deserialize). Without this, the calls below dereference a
+    // null execution context and segfault.
+    if (!context.trt) {
+        fprintf(stderr, "TensorRT: execution context unavailable; skipping receiver inference\n");
+        fflush(stderr);
+        return;
+    }
     if (in_symbols) {
         context.trt->setTensorAddress("rx_slot", (void*) in_symbols);
         Dims symbol_dims;
@@ -383,6 +391,15 @@ extern "C" void trt_receiver_decode(TRTContext* context_, cudaStream_t stream, i
     if (context_ && stream == 0)
         stream = context_->default_stream;
 
+    // Fail gracefully if the engine/execution context never came up. The block
+    // loop below writes into context device buffers that are only allocated
+    // once the context is valid, so bail out before touching them.
+    if (!context.trt) {
+        fprintf(stderr, "TensorRT: execution context unavailable; skipping receiver decode\n");
+        fflush(stderr);
+        return;
+    }
+
     struct timespec ts_begin, ts_end;
     unsigned long long time_ns;
 
@@ -432,11 +449,23 @@ TRTContext& trt_receiver_init_context(int make_stream) {
         return context;
 
     printf("Initializing TRT context (TID %d)\n", (int) gettid());
+    // Guard against a null engine (failed/incompatible plan). Calling a method
+    // on a null engine here is what previously segfaulted the process. Leave
+    // context.trt as nullptr so callers skip inference gracefully.
+    if (!engine) {
+        fprintf(stderr, "TensorRT: no engine available; cannot create execution context\n");
+        fflush(stderr);
+        return context;
+    }
+#if NV_TENSORRT_MAJOR >= 10
+    context.trt = engine->createExecutionContext(ExecutionContextAllocationStrategy::kSTATIC);
+#else
     context.trt = engine->createExecutionContextWithoutDeviceMemory();
     size_t preallocSize = engine->getDeviceMemorySize();
     void* preallocMem;
     printf("Prealloc result %d for size %llu Kb\n", (int) cudaMalloc(&preallocMem, preallocSize), (unsigned long long) preallocSize / 1024);
     context.trt->setDeviceMemory(preallocMem);
+#endif
 
     if (make_stream) {
         int highPriority = 0;
@@ -519,6 +548,12 @@ extern "C" TRTContext* trt_receiver_init(int make_stream) {
     printf("Loading TRT engine %s\n", weight_file.c_str());
     std::vector<char> modelData = readModelFromFile(weight_file.c_str());
     engine = runtime->deserializeCudaEngine(modelData.data(), modelData.size());
+    if (!engine) {
+        fprintf(stderr, "TensorRT: failed to deserialize engine from '%s' "
+                        "(missing, empty, or built with an incompatible TensorRT version)\n",
+                weight_file.c_str());
+        fflush(stderr);
+    }
 
     return &trt_receiver_init_context(make_stream);
 }

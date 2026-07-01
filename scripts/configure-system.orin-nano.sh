@@ -80,8 +80,8 @@ fi
 # install python utility
 sudo python3 -m pip install -U jetson-stats
 
-# install tensorflow for sionna-no-rt
-python3 -m pip install --user --extra-index-url https://developer.download.nvidia.com/compute/redist/jp/v60 tensorflow==2.16.1+nv24.07
+# install pytorch for sionna
+python3 -m pip install --user torch
 
 # install python requirements for tutorials
 base_dir=$(realpath $(dirname "${BASH_SOURCE[0]}")/../)

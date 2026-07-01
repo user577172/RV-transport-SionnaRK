@@ -1,12 +1,11 @@
-tensorflow==2.16.1+nv24.07
-sionna-no-rt < 2.0
+sionna-no-rt >= 2.0
+torch
 numpy
 matplotlib
 nanobind
 onnx
-tf2onnx
+onnxscript
 pytest
 #tensorrt
 pyzmq
 pyyaml
-

@@ -82,7 +82,7 @@ else
 fi
 
 # install ZMQ required for channel emulator
-sudo apt install libzmq5 libczmq-dev libcjson1 libcjson-dev
+sudo apt install -y libzmq5 libczmq-dev libcjson1 libcjson-dev
 
 # install python requirements for tutorials
 base_dir=$(realpath $(dirname "${BASH_SOURCE[0]}")/../)

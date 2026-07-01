@@ -44,7 +44,7 @@ Can be used as drop-in replacement for a classical demapper in wireless communic
  
 ## Software Integration:
 **Runtime Engine(s):**
-Tensorflow or TensorRT
+PyTorch or TensorRT
  
 **Supported Hardware Microarchitecture Compatibility:**
 * [NVIDIA Ampere] <br>
@@ -81,7 +81,7 @@ Synthetic
 **Properties:** Synthetic QAM symbols generated from a predefined set of possible values, with additive Gaussian white noise (AWGN) applied dynamically during training to simulate real-world wireless channel conditions. Each sample represents a noisy transmission of a QAM-modulated signal, where the AWGN models the stochastic effects of the wireless environment. This process ensures that the demapper is trained on a diverse range of signal variations, improving robustness to real-world impairments in modern communication systems.
  
 ## Inference:
-**Engine:** Tensor(RT) or Tensorflow
+**Engine:** Tensor(RT) or PyTorch
  
 **Test Hardware:**
 NVIDIA Jetson AGX Orin

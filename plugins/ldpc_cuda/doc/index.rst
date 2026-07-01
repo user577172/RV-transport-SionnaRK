@@ -3,7 +3,7 @@
 GPU-Accelerated LDPC Decoding
 =============================
 
-.. figure:: ../../figs/tutorial_ldpc_overview.png
+.. figure:: ../../../doc/source/figs/tutorial_ldpc_overview.png
    :align: center
    :width: 700px
    :alt: LDPC Acceleration Overview
@@ -11,6 +11,7 @@ GPU-Accelerated LDPC Decoding
    Schematic overview of the 5G NR PUSCH. Note that this is a simplified view showing only the relevant components for the following tutorials and uses the Sionna naming convention. For simplicity, the HARQ process and MIMO aspects are not shown.
 
 In this tutorial, we will show how the low-density parity-check (LDPC) decoder of the physical layer can be accelerated using CUDA.
+The 5G NR LDPC code design is described in [Richardson2018]_; for reduced-complexity decoding we refer to [Chen2005]_, and for hardware acceleration context to [Romani2020]_.
 As wireless communications is a latency critical application, we will also discuss the performance implications of different memory sharing patterns between the CPU and the GPU. The unified CPU/GPU architecture of DGX Spark and Jetson AGX Thor allows for efficient `inline acceleration <https://developer.nvidia.com/blog/building-software-defined-high-performance-and-efficient-vran-requires-programmable-inline-acceleration/>`_ without the need of explicit memory transfers.
 For a more detailed discussion on different acceleration techniques, we refer the interested reader to [Kundu2023B]_.
 

@@ -1,9 +1,9 @@
 diff --git .env .env
 new file mode 100644
-index 0000000..475f3f5
+index 0000000..229917d
 --- /dev/null
 +++ .env
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,86 @@
 +# =============================================================================
 +# Config Files
 +# =============================================================================
@@ -52,13 +52,19 @@ index 0000000..475f3f5
 +# works best with 24 PRBs
 +#GNB_EXTRA_OPTIONS="--loader.receiver.shlibversion _trt --MACRLCs.[0].ul_max_mcs 10"
 +
++# Link Adaptation (see plugins/link_adaptation/doc/)
++#GNB_EXTRA_OPTIONS="--loader.link_adaptation.shlibversion _log"                    # OAI-LA + CSV stats
++#GNB_EXTRA_OPTIONS="--loader.link_adaptation.shlibversion _olla"                   # Simple OLLA (scheduling-stats-based)
++#GNB_EXTRA_OPTIONS="--loader.link_adaptation.shlibversion _mcs_hist_log"           # OAI-LA + HARQ history + CSV
++#GNB_EXTRA_OPTIONS="--loader.link_adaptation.shlibversion _mcs_hist_olla"          # Advanced OLLA + HARQ history  (recommended)
++
 +# Channel Emulation (choose one CIR source: cir_file or cir_zmq)
 +# Option 1: File-based CIR (loads pre-computed CIR data from folder)
 +#GNB_EXTRA_OPTIONS="--cir-folder /opt/oai-gnb/plugins/channel_emulation/data/pass_through_cir"
-+# Option 2: ZMQ-based CIR (receives CIR data via ZMQ at runtime, use with Sionna RT GUI)
++# Option 2: ZMQ-based CIR (receives CIR data via ZMQ at runtime, use with SionnaRT GUI)
 +#GNB_EXTRA_OPTIONS="--cir-zmq-num-taps 48"
 +
-+# MPS active thread percentage (only relevant when running the Sionna RT GUI)
++# MPS active thread percentage (only relevant when running the SionnaRT GUI)
 +#MPS_ACTIVE_THREAD_PCT=30.0
 +
 +# =============================================================================

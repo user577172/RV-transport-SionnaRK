@@ -7,17 +7,17 @@
 #
 # Starts the 5G network with the CUDA channel emulator (ZMQ CIR source),
 # waits for the UE to connect, launches iperf3 traffic, and starts the
-# Sionna RT GUI with MPS.
+# SionnaRT GUI with MPS.
 #
 # Prerequisites:
 #   - Docker images built (oai-gnb-cuda, oai-nr-ue-cuda, CN5G, FlexRIC)
-#   - Sionna RT GUI installed (https://github.com/NVlabs/sionna-rt-gui)
+#   - SionnaRT GUI installed (https://github.com/NVlabs/sionna-rt-gui)
 #
 # Usage:
 #   ./scripts/start_channel_emulation_demo.sh [GUI_CONFIG]
 #
 # Environment variables:
-#   SIONNA_RT_GUI_DIR   Path to the Sionna RT GUI (default: ext/sionna-rt-gui)
+#   SIONNA_RT_GUI_DIR   Path to the SionnaRT GUI (default: ext/sionna-rt-gui)
 #   MPS_ACTIVE_THREAD_PCT  MPS thread percentage (default: 50.0)
 #   CIR_ZMQ_NUM_TAPS   Number of CIR taps (default: 48)
 #   SKIP_GUI            Set to 1 to skip the GUI (default: 0)
@@ -176,7 +176,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 7. Start MPS + Sionna RT GUI
+# 7. Start MPS + SionnaRT GUI
 # ---------------------------------------------------------------------------
 
 if [[ "${SKIP_GUI:-0}" == "1" ]]; then
@@ -193,7 +193,7 @@ else
         echo "  The channel emulator ZMQ is available on host port 5556."
         echo "  The stats ZMQ is available on host port 5555."
     else
-        log "Starting MPS and Sionna RT GUI..."
+        log "Starting MPS and SionnaRT GUI..."
         exec "$REPO_ROOT/plugins/channel_emulation/scripts/start_mps_gui.sh" "$GUI_CONFIG"
     fi
 fi

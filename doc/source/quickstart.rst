@@ -13,7 +13,7 @@ By following this guide, you can set up your private software-defined 5G network
 
    .. code-block:: bash
 
-      # Checkout the Github repository
+      # Checkout the GitHub repository
       git clone --recurse-submodules https://github.com/NVlabs/sionna-rk.git
       cd sionna-rk
 
@@ -273,4 +273,4 @@ We hope that you have enjoyed this quickstart guide! For inspiration and as blue
 
 Check the :ref:`tutorials` page for more info.
 
-For a detailed configuration and troubleshooting, see the :ref:`setup` guide or visit the `Github Discussions <https://github.com/NVLabs/sionna/discussions>`_.
+For a detailed configuration and troubleshooting, see the :ref:`setup` guide or visit the `GitHub Discussions <https://github.com/NVLabs/sionna/discussions>`_.

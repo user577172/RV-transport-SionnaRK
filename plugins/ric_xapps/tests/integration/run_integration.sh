@@ -25,6 +25,8 @@ fi
 
 cd "$CONFIG_DIR"
 
+CLIENT_LOG=""
+
 cleanup() {
     echo "Cleaning up..."
     # Kill background client if running
@@ -32,6 +34,7 @@ cleanup() {
         kill $CLIENT_PID 2>/dev/null || true
     fi
     docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+    [ -n "$CLIENT_LOG" ] && rm -f "$CLIENT_LOG"
 }
 trap cleanup EXIT
 
@@ -71,7 +74,7 @@ fi
 echo "✅ UE connected: $UE_IP"
 
 # Start ZeroMQ client in background and capture output
-CLIENT_LOG="/tmp/zmq_client_$$.log"
+CLIENT_LOG="$(mktemp -t zmq_client.XXXXXX)"
 echo "Starting ZeroMQ client logging to $CLIENT_LOG"
 # Run client for enough messages to capture traffic
 python3 "$REPO_ROOT/plugins/ric_xapps/src/zmq_stats_client.py" --max-messages 20 > "$CLIENT_LOG" 2>&1 &

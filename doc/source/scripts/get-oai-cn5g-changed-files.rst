@@ -52,4 +52,4 @@ EXAMPLES
 SEE ALSO
 ========
 
-:doc:`quickstart-cn5g.sh </scripts/quickstart-cn5g>`
+:doc:`quickstart-cn5g.sh <quickstart-cn5g>`

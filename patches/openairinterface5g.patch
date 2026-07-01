@@ -11,15 +11,15 @@ index d1c6979e76..846a6b66ce 100644
 +# Generated files
 +host_product_family
 diff --git a/.gitmodules b/.gitmodules
-index adf63b85a3..dc68d61ca4 100644
+index 583c8d8758..14b8c4e9da 100644
 --- a/.gitmodules
 +++ b/.gitmodules
 @@ -1,4 +1,4 @@
  [submodule "openair2/E2AP/flexric"]
  	path = openair2/E2AP/flexric
- 	url = https://gitlab.eurecom.fr/mosaic5g/flexric.git
--	branch = remotes/origin/service-models-integration
-+	branch = remotes/origin/service-models-integration 
+ 	url = ../flexric.git
+-	branch = remotes/origin/2025_w34.internal
++	branch = 2025_w34.internal
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index a71b1c3ea2..e721041ce5 100644
 --- a/CMakeLists.txt
@@ -545,10 +545,10 @@ index 0000000000..bab504ef7c
 +
 diff --git a/docker/Dockerfile.gNB.ubuntu.cuda b/docker/Dockerfile.gNB.ubuntu.cuda
 new file mode 100644
-index 0000000000..63f58d3605
+index 0000000000..a74dcc121c
 --- /dev/null
 +++ b/docker/Dockerfile.gNB.ubuntu.cuda
-@@ -0,0 +1,164 @@
+@@ -0,0 +1,165 @@
 +#/*
 +# * Licensed to the OpenAirInterface (OAI) Software Alliance under one or more
 +# * contributor license agreements.  See the NOTICE file distributed with
@@ -664,6 +664,7 @@ index 0000000000..63f58d3605
 +    /oai-ran/cmake_targets/ran_build/build/libchn_emu.so \
 +    /oai-ran/cmake_targets/ran_build/build/libcir_file.so \
 +    /oai-ran/cmake_targets/ran_build/build/libcir_zmq.so \
++    /oai-ran/cmake_targets/ran_build/build/liblink_adaptation*.so \
 +    /usr/local/lib/
 +
 +# to drop in incremental build results:
@@ -1054,7 +1055,7 @@ index 61823d43cd..526e46bd98 100644
  /*--------------------------------------------------------------------------------------------------------------------------------*/
  /*                                            command line parameters for LOG utility                                             */
 diff --git a/executables/nr-softmodem.c b/executables/nr-softmodem.c
-index d8df770cb8..8c0a101bf6 100644
+index d8df770cb8..d0ad1af8f4 100644
 --- a/executables/nr-softmodem.c
 +++ b/executables/nr-softmodem.c
 @@ -87,6 +87,8 @@ unsigned short config_frames[4] = {2,9,11,13};
@@ -1062,7 +1063,7 @@ index d8df770cb8..8c0a101bf6 100644
  #include "openair1/SCHED_NR/sched_nr.h"
  #include "openair2/SDAP/nr_sdap/nr_sdap.h"
 +#include "plugins/common/src/plugins.h"
-+// #include "plugins/neural_receiver/nr_receiver_extern.h"  // Disabled - plugin not active
++#include "plugins/common/src/mac_plugins.h"
  
  pthread_cond_t nfapi_sync_cond;
  pthread_mutex_t nfapi_sync_mutex;
@@ -1084,7 +1085,15 @@ index d8df770cb8..8c0a101bf6 100644
      if((is_x2ap_enabled() || IS_SA_MODE(get_softmodem_params())) && (node_type != ngran_gNB_CUCP)) {
        if (itti_create_task (TASK_GTPV1_U, &gtpv1uTask, NULL) < 0) {
          LOG_E(GTPU, "Create task for GTPV1U failed\n");
-@@ -633,14 +635,20 @@ int main( int argc, char **argv ) {
+@@ -408,6 +410,7 @@ int stop_L1(module_id_t gnb_id)
+   for (int inst = 0; inst < RC.nb_nr_L1_inst; inst++) {
+     phy_free_nr_gNB(RC.gNB[inst]);
+   }
++  free_mac_plugins();
+ 
+   RC.gNB[gnb_id]->configured = 0;
+   return 0;
+@@ -633,14 +636,21 @@ int main( int argc, char **argv ) {
      for (ru_id=0; ru_id<RC.nb_RU; ru_id++) {
        RC.ru[ru_id]->rf_map.card=0;
        RC.ru[ru_id]->rf_map.chain=CC_id+chain_offset;
@@ -1103,11 +1112,12 @@ index d8df770cb8..8c0a101bf6 100644
 +    NR_DL_FRAME_PARMS *fp = &RC.gNB[0]->frame_parms;
 +    init_plugins(fp);
 +  }
++  init_mac_plugins();
 +  printf("\nInitialized plugins\n\n");
  
  #ifdef E2_AGENT
  
-@@ -648,7 +656,7 @@ int main( int argc, char **argv ) {
+@@ -648,7 +658,7 @@ int main( int argc, char **argv ) {
  //////////////////////////////////
  //// Init the E2 Agent
  
@@ -2108,3 +2118,120 @@ index df754a8553..1f571c18b8 160000
 @@ -1 +1 @@
 -Subproject commit df754a85537f6db255b5330b8d83eda6a2742f25
 +Subproject commit 1f571c18b81deeb627ffce1102fea3f9da3f62a7
+diff --git a/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_primitives.c b/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_primitives.c
+index 264150f314..0a24828170 100644
+--- a/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_primitives.c
++++ b/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_primitives.c
+@@ -765,6 +765,8 @@ NR_pusch_dmrs_t get_ul_dmrs_params(const NR_ServingCellConfigCommon_t *scc,
+   return dmrs;
+ }
+ 
++#include "plugins/common/src/mac_plugins.h"
++
+ #define BLER_UPDATE_FRAME 10
+ #define BLER_FILTER 0.9f
+ int get_mcs_from_bler(const NR_bler_options_t *bler_options,
+@@ -773,6 +775,28 @@ int get_mcs_from_bler(const NR_bler_options_t *bler_options,
+                       int max_mcs,
+                       frame_t frame)
+ {
++  // Dispatch to the LA plugin for DL calls only.
++  //
++  // Both the DL and UL paths call this function, with:
++  //   DL: bler_stats == &sched_ctrl->dl_bler_stats, stats == &UE->mac_stats.dl
++  //   UL: bler_stats == &sched_ctrl->ul_bler_stats, stats == &UE->mac_stats.ul
++  //
++  // dl_bler_stats and ul_bler_stats sit at different offsets in
++  // NR_UE_sched_ctrl_t, and mac_stats.dl / mac_stats.ul sit at different
++  // offsets in NR_mac_stats_t. We can therefore recover two candidate UE
++  // pointers (one assuming DL, one assuming UL) from stats and bler_stats,
++  // and the pair that is mutually consistent tells us which path we are on.
++  if (link_adaptation_interface.get_mcs_from_bler) {
++    const char *ue_dl_from_stats = (const char *)stats
++        - offsetof(NR_mac_stats_t, dl)
++        - offsetof(NR_UE_info_t, mac_stats);
++    const char *ue_dl_from_bler = (const char *)bler_stats
++        - offsetof(NR_UE_sched_ctrl_t, dl_bler_stats)
++        - offsetof(NR_UE_info_t, UE_sched_ctrl);
++    if (ue_dl_from_stats == ue_dl_from_bler)
++      return link_adaptation_interface.get_mcs_from_bler(bler_options, stats, bler_stats, max_mcs, frame);
++  }
++
+   int diff = frame - bler_stats->last_frame;
+   if (diff < 0) // wrap around
+     diff += 1024;
+diff --git a/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_uci.c b/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_uci.c
+index 00201cdd8d..c356c087dd 100644
+--- a/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_uci.c
++++ b/openair2/LAYER2/NR_MAC_gNB/gNB_scheduler_uci.c
+@@ -400,6 +400,32 @@ static void handle_dl_harq(NR_UE_info_t * UE,
+ {
+   NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
+   NR_UE_harq_t *harq = &sched_ctrl->harq_processes[harq_pid];
++
++  // Record HARQ feedback in MCS history (for link adaptation plugins).
++  // Only first-round feedback is recorded so a NACK->retry->ACK sequence
++  // counts as a single NACK (otherwise every retry inflates the history).
++  // When the buffer is full we overwrite the oldest entry and advance the
++  // head index, implementing a proper circular buffer.
++  if (harq->round == 0) {
++    NR_mcs_history_t *hist = &sched_ctrl->mcs_history;
++    NR_mcs_history_entry_t *entry;
++    if (hist->count < MAX_MCS_HISTORY) {
++      entry = &hist->entries[hist->tail];
++      hist->tail = (hist->tail + 1) % MAX_MCS_HISTORY;
++      hist->count++;
++    } else {
++      // Buffer full: overwrite oldest entry at head
++      entry = &hist->entries[hist->head];
++      hist->head = (hist->head + 1) % MAX_MCS_HISTORY;
++      hist->tail = (hist->tail + 1) % MAX_MCS_HISTORY;
++    }
++    entry->mcs = harq->sched_pdsch.mcs;
++    entry->success = success ? 1 : 0;
++    entry->timestamp = (harq->feedback_frame << 16) | harq->feedback_slot;
++    entry->tb_size = harq->sched_pdsch.tb_size;
++    entry->spectral_efficiency = (float)harq->sched_pdsch.Qm * (float)harq->sched_pdsch.R / 1024.0f;
++  }
++
+   harq->feedback_slot = -1;
+   harq->is_waiting = false;
+   if (success) {
+diff --git a/openair2/LAYER2/NR_MAC_gNB/nr_mac_gNB.h b/openair2/LAYER2/NR_MAC_gNB/nr_mac_gNB.h
+index 2627c9162b..9da6c4fe7e 100644
+--- a/openair2/LAYER2/NR_MAC_gNB/nr_mac_gNB.h
++++ b/openair2/LAYER2/NR_MAC_gNB/nr_mac_gNB.h
+@@ -493,6 +493,23 @@ typedef struct NR_bler_stats {
+   uint64_t rounds[8];
+ } NR_bler_stats_t;
+ 
++#define MAX_MCS_HISTORY 64
++
++typedef struct {
++  uint8_t mcs;
++  uint8_t success;
++  uint32_t timestamp;
++  uint32_t tb_size;
++  float spectral_efficiency;
++} NR_mcs_history_entry_t;
++
++typedef struct {
++  NR_mcs_history_entry_t entries[MAX_MCS_HISTORY];
++  int head;
++  int tail;
++  int count;
++} NR_mcs_history_t;
++
+ //
+ /*! As per spec 38.214 section 5.2.1.4.2
+  * - if the UE is configured with the higher layer parameter groupBasedBeamReporting set to 'disabled', the UE shall report in
+@@ -671,6 +688,9 @@ typedef struct {
+   // pdcch closed loop adjust for PDCCH aggregation level, range <0, 1>
+   // 0 - good channel, 1 - bad channel
+   float pdcch_cl_adjust;
++
++  /// MCS transmission history for link adaptation plugins (HARQ feedback)
++  NR_mcs_history_t mcs_history;
+ } NR_UE_sched_ctrl_t;
+ 
+ typedef struct NR_mac_dir_stats {

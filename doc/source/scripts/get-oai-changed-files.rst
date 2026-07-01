@@ -57,4 +57,4 @@ EXAMPLES
 SEE ALSO
 ========
 
-:doc:`quickstart-oai.sh </scripts/quickstart-oai>`
+:doc:`quickstart-oai.sh <quickstart-oai>`

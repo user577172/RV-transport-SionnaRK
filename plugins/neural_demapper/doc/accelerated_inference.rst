@@ -3,7 +3,7 @@
 Part 2: GPU-Accelerated inference
 =================================
 
-.. figure:: ../../figs/tutorial_nn_demapper_overview.png
+.. figure:: ../../../doc/source/figs/tutorial_nn_demapper_overview.png
    :align: center
    :width: 600px
    :alt: Neural Demapper Overview
@@ -22,7 +22,7 @@ For details on efficient memory management when offloading compute-intensive fun
 Demapper Implementation Overview
 --------------------------------
 
-The neural demapper is implemented in Tensorflow and exported to TensorRT, the source code of the inference logic can be found in `plugins/neural_demapper/src/runtime/trt_demapper.cpp <https://github.com/NVlabs/sionna-rk/blob/main/plugins/neural_demapper/src/runtime/trt_demapper.cpp>`_. The implementation will be explained in the following sections.
+The neural demapper is implemented in PyTorch and exported to TensorRT, the source code of the inference logic can be found in `plugins/neural_demapper/src/runtime/trt_demapper.cpp <https://github.com/NVlabs/sionna-rk/blob/main/plugins/neural_demapper/src/runtime/trt_demapper.cpp>`_. The implementation will be explained in the following sections.
 
 The TRT demapper receives noisy input symbols from the OpenAirInterface stack via the function ``trt_demapper_decode()``, which chunks a given array of symbols into batches of maximum size ``MAX_BLOCK_LEN`` and then calls ``trt_demapper_decode_block()`` to carry out the actual inference on each batch. To leverage data-parallel execution on the GPU, inference is performed for batches of symbols and multiple threads in parallel. The output of the neural demapper is passed back in the form of ``num_bits_per_symbol`` LLRs per input symbol.
 
@@ -70,7 +70,7 @@ We call the following global initialization routine on program startup:
 .. code-block:: cpp
    :linenos:
 
-   static char const* trt_weight_file = "models/neural_demapper_qam16_2.plan"; // Training result / trtexec output
+   static char const* trt_weight_file = "models/neural_demapper.2xfloat16.plan"; // Training result / trtexec output
    static bool trt_normalized_inputs = true;
 
    extern "C" TRTContext* trt_demapper_init() {
@@ -215,7 +215,7 @@ After inference, the conversion back to quantized LLRs follows the same pattern,
 
 The CUDA kernel for normalization runs in a straight-forward 1D CUDA grid, reading the tuples of ``int16_t``-quantized components that make up each complex value in a coalesced (consecutive) way, as one ``int32_t`` value each. Then, the symbol values are normalized with respect to the magnitude values and again written in a coalesced way, fusing each complex symbol into one ``__half2`` value:
 
-.. literalinclude:: ../../../../plugins/neural_demapper/src/runtime/data_processing.cu
+.. literalinclude:: ../src/runtime/data_processing.cu
    :language: cpp
    :linenos:
    :start-after: START marker-normalize-symbols
@@ -230,7 +230,7 @@ The CUDA kernel for normalization runs in a straight-forward 1D CUDA grid, readi
 
 The CUDA kernel for re-quantization of output LLRs works analogously, converting half-precision floating-point LLR tuples to quantized ``int16_t`` values by fixed-point scaling and rounding:
 
-.. literalinclude:: ../../../../plugins/neural_demapper/src/runtime/data_processing.cu
+.. literalinclude:: ../src/runtime/data_processing.cu
    :language: cpp
    :linenos:
    :start-after: START marker-quantize-llrs
@@ -242,7 +242,7 @@ Demapper Integration in OAI
 
 .. note::
 
-   Ensure that you have built the TRTengine in the first part of the tutorial.
+   Ensure that you have built the TRT engine in the first part of the tutorial.
 
 
 In order to mount the TensorRT models and config files, you need to extend the ``config/common/docker-compose.override.yaml`` file:
@@ -276,7 +276,7 @@ For example, the following config file will use the TensorRT engine `models/neur
 Running the Demapper
 --------------------
 
-The neural demapper is implemented as shared library (see :ref:`data_acquisition`) which can be loaded using the OAI shared library loader. The demapper can now be used as a drop-in replacement for the QAM-16 default implementation. The demapper can be loaded when running the gNB via the following ``GNB_EXTRA_OPTIONS`` in the ``config/<config_name>/.env`` file of the config folder.
+The neural demapper is implemented as a shared library (see :ref:`data_acquisition`) which can be loaded using the OAI shared library loader. The demapper can now be used as a drop-in replacement for the QAM-16 default implementation. The demapper can be loaded when running the gNB via the following ``GNB_EXTRA_OPTIONS`` in the ``config/<config_name>/.env`` file of the config folder.
 
 .. code-block:: bash
 
@@ -363,7 +363,7 @@ CUDA command graph APIs [Gray2019]_ were introduced to frontload the overhead of
 
 Command graphs are pre-recorded per thread due to the individual intermediate storage buffers used. We run the recording at the end of thread context initialization as introduced above, for each batch size running one *size-0* inference to trigger any kind of lazy runtime allocations, and another inference on dummy inputs for the actual recording:
 
-.. literalinclude:: ../../../../plugins/neural_demapper/src/runtime/trt_demapper.cpp
+.. literalinclude:: ../src/runtime/trt_demapper.cpp
    :language: cpp
    :linenos:
    :start-after: START marker-record-graph

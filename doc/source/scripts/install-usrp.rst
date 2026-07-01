@@ -64,4 +64,4 @@ EXAMPLES
 SEE ALSO
 ========
 
-:doc:`configure-system </scripts/configure-system>`
+:doc:`configure-system <configure-system>`

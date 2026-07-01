@@ -16,7 +16,7 @@ def configured_trt_dm(compiled_modules):
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     # Always use base filename - the C++ runtime will apply PLAN_POSTFIX if set
-    model_file = "neural_demapper_qam16_2.plan"
+    model_file = "neural_demapper.2xfloat16.plan"
     model_path = os.path.join(base_dir, "models", model_file)
     
     # Check if the actual file exists (C++ will apply postfix at runtime)
@@ -24,7 +24,7 @@ def configured_trt_dm(compiled_modules):
     plan_postfix = os.getenv("PLAN_POSTFIX", "")
     if plan_postfix:
         # Check that the postfixed file exists
-        postfixed_path = os.path.join(base_dir, "models", f"neural_demapper_qam16_2{plan_postfix}.plan")
+        postfixed_path = os.path.join(base_dir, "models", f"neural_demapper.2xfloat16{plan_postfix}.plan")
         if not os.path.exists(postfixed_path):
             pytest.skip(f"Model file not found: {postfixed_path}")
     else:
@@ -42,32 +42,59 @@ use_sionna_reference = True
 
 if use_sionna_reference:
     import sionna as sn
-    import tensorflow as tf
+    import torch
 
-    # reference implementation
-    mapper = sn.phy.mapping.Mapper(num_bits_per_symbol=NUM_BITS_PER_SYMBOL,
-                               constellation_type="qam")
-    demapper = sn.phy.mapping.Demapper(demapping_method="app",
-                                   num_bits_per_symbol=NUM_BITS_PER_SYMBOL,
-                                   constellation_type="qam")
+    # Generate the reference data on the CPU. Only the *reference* LLRs are
+    # produced with Sionna here; the TRT demapper under test runs on the GPU via
+    # its own C++/TensorRT runtime. Forcing Sionna to the CPU keeps this path
+    # portable and deterministic, and avoids torch CUDA RNG failures on bleeding
+    # edge GPUs (e.g. AGX Thor, where torch.randint on CUDA raises
+    # "CUDA error: invalid argument").
+    sn.phy.config.device = "cpu"
+
+    mapper = sn.phy.mapping.Mapper("qam", NUM_BITS_PER_SYMBOL)
+    demapper = sn.phy.mapping.Demapper("app", "qam", NUM_BITS_PER_SYMBOL)
 
     EBN0_DB = 17.0 # Eb/N0 in dB
-    # data sources
     binary_source = sn.phy.mapping.BinarySource()
     awgn_channel = sn.phy.channel.AWGN()
     no = sn.phy.utils.ebnodb2no(ebno_db=EBN0_DB,
                                 num_bits_per_symbol=NUM_BITS_PER_SYMBOL,
                                 coderate=1.0)
+    # Fixed noise variance corresponding to EBN0_DB. Using a realistic, constant
+    # Eb/N0 (instead of a random per-symbol value) keeps symbols unambiguous so
+    # the TRT vs. reference comparison is meaningful and not dominated by
+    # near-zero-LLR (undecidable) bits.
+    NO_EBNO = torch.tensor(float(no), dtype=torch.float32)
+
+
+# Seed all RNGs so the test data is deterministic. Combined with the fixed
+# noise level above, this makes the accuracy assertions reproducible rather
+# than flaky (tiny sample sizes leave no margin under the 0.98 threshold).
+# Sionna PHY uses its own internal RNGs (numpy/torch/python) that are NOT
+# controlled by torch.manual_seed; they must be reset via sn.phy.config.seed.
+SEED = 0xC0FFEE
+
+@pytest.fixture(autouse=True)
+def _seed_rng():
+    np.random.seed(SEED)
+    if use_sionna_reference:
+        # torch.manual_seed is belt-and-suspenders: sn.phy.config.seed already
+        # resets the relevant torch RNGs, but seeding torch's global PRNG too
+        # makes the intent explicit and covers any torch.randn usage that does
+        # not go through Sionna's per-device generators.
+        torch.manual_seed(SEED)
+        sn.phy.config.seed = SEED
 
 def generate_symbols(num_symbols):
     magnitudes_i = np.random.randint(1, 32767, size=(num_symbols, 2), dtype=np.int16)
     magnitudes_h = np.ldexp(magnitudes_i.astype(np.float32), -8).astype(np.float16)
 
     if use_sionna_reference:
-        no = tf.random.uniform([num_symbols,1], minval=0., maxval=1., dtype=tf.float32)
+        no = NO_EBNO
         bits = binary_source([num_symbols, NUM_BITS_PER_SYMBOL])
         x = mapper(bits)
-        symbols_cx = awgn_channel(x, no).numpy()
+        symbols_cx = awgn_channel(x, no).detach().cpu().numpy()
         symbols_h = np.concatenate((np.real(symbols_cx), np.imag(symbols_cx)), axis=-1).astype(np.float16)
     else:
         bits = None
@@ -78,14 +105,14 @@ def generate_symbols(num_symbols):
     symbols_h = np.ldexp(symbols_i.astype(np.float32), -8).astype(np.float16)
 
     if use_sionna_reference:
-        tf_symbols = tf.convert_to_tensor(symbols_h, dtype=tf.dtypes.float32)
-        tf_magnitudes = tf.convert_to_tensor(magnitudes_h, dtype=tf.dtypes.float32)
-        tf_no = tf.convert_to_tensor(no, dtype=tf.dtypes.float32)
-        tf_symbols = tf_symbols / tf_magnitudes * QAM_THRESHOLD_MAG
-        llrs_ref = demapper(tf.complex(tf_symbols[...,0:1],
-                                       tf_symbols[...,1:2]),
-                            tf_no)
-        llrs_ref = -llrs_ref.numpy()#.reshape(-1, NUM_BITS_PER_SYMBOL)
+        t_symbols = torch.tensor(symbols_h, dtype=torch.float32)
+        t_magnitudes = torch.tensor(magnitudes_h, dtype=torch.float32)
+        t_no = torch.tensor(no.numpy() if isinstance(no, torch.Tensor) else no, dtype=torch.float32)
+        t_symbols = t_symbols / t_magnitudes * QAM_THRESHOLD_MAG
+        llrs_ref = demapper(torch.complex(t_symbols[...,0:1],
+                                          t_symbols[...,1:2]),
+                            t_no)
+        llrs_ref = -llrs_ref.detach().cpu().numpy()
     else:
         llrs_ref = None
 
@@ -116,6 +143,8 @@ def test_trt_decode(configured_trt_dm, num_symbols):
     llrs_h = np.ldexp(llrs_i.astype(np.float32), -8).astype(np.float16)
 
     if bits is not None:
+        if isinstance(bits, torch.Tensor):
+            bits = bits.detach().cpu().numpy()
         bit_signs = 1 - 2 * bits
         correct_mask = bit_signs == np.sign(llrs_h)
         llrs_h = np.where(correct_mask, bit_signs, llrs_h)

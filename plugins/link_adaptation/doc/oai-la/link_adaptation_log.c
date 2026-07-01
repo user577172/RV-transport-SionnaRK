@@ -1,0 +1,1 @@
+../../openairinterface5g/openair2/LAYER2/NR_MAC_gNB/link_adaptation_log.c

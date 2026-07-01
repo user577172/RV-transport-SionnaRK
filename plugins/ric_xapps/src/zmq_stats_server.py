@@ -35,6 +35,9 @@ callback_count = 0
 rnti_to_imsi_map = {}  # {rnti: {'imsi': str, 'ue_number': int}}
 # PRB tracking for interval - track per-slot PRB usage from each callback
 prb_tracking = {}  # {rnti: {'dl_prbs': [prbs], 'ul_prbs': [prbs]}}
+# Goodput tracking - per-RNTI cumulative RLC-SDU byte counters from the previous
+# report, used to derive Mbit/s from consecutive aggregates.
+goodput_tracking = {}  # {rnti: {'dl_bytes': int, 'ul_bytes': int, 'time': float}}
 
 
 class FlexRICStatsPublisher:
@@ -133,7 +136,8 @@ class FlexRICStatsPublisher:
                     logger.info(f"  {ue['ue_id']} {imsi_str}RNTI:{ue['rnti']} MCS↓:{ue['mcs_down']}/↑:{ue['mcs_up']} "
                               f"BLER↓:{ue['bler_down']:.3f}/↑:{ue['bler_up']:.3f} "
                               f"PRBs(max)↓:{ue['num_prbs_down']}/↑:{ue['num_prbs_up']} "
-                              f"PRBs(total)↓:{ue['aggr_prbs_down']}/↑:{ue['aggr_prbs_up']}")
+                              f"PRBs(total)↓:{ue['aggr_prbs_down']}/↑:{ue['aggr_prbs_up']} "
+                              f"Goodput↓:{ue.get('goodput_down', 0):.2f}/↑:{ue.get('goodput_up', 0):.2f} Mbps")
             else:
                 logger.info(f"Published #{self.publish_count}: {num_ues} UEs at TS {stats_data['timestamp']}")
 
@@ -274,7 +278,7 @@ class MACStatsCallback(ric.mac_cb):
 
     def handle(self, ind):
         """Handle MAC indication from FlexRIC."""
-        global latest_ue_stats, last_indication_time, callback_count, rnti_to_imsi_map, prb_tracking
+        global latest_ue_stats, last_indication_time, callback_count, rnti_to_imsi_map, prb_tracking, goodput_tracking
 
         # Increment counter
         callback_count += 1
@@ -352,6 +356,25 @@ class MACStatsCallback(ric.mac_cb):
                 # Add aggregated PRB counts (cumulative total since UE connection)
                 ue_data["aggr_prbs_down"] = ue.dl_aggr_prb if hasattr(ue, 'dl_aggr_prb') else 0
                 ue_data["aggr_prbs_up"] = ue.ul_aggr_prb if hasattr(ue, 'ul_aggr_prb') else 0
+
+                # Goodput (Mbit/s): derive from the delta of cumulative transport
+                # block size (TBS) bytes between consecutive reports. TBS is an
+                # upper bound on true RLC-SDU goodput (it includes padding and
+                # retx), but OAI leaves dl_aggr_bytes_sdus at zero so TBS is the
+                # only live counter.
+                dl_bytes = ue.dl_aggr_tbs if hasattr(ue, 'dl_aggr_tbs') else 0
+                ul_bytes = ue.ul_aggr_tbs if hasattr(ue, 'ul_aggr_tbs') else 0
+                now = time.time()
+                rnti = ue_data["rnti"]
+                prev = goodput_tracking.get(rnti)
+                if prev is not None and now > prev['time']:
+                    dt = now - prev['time']
+                    ue_data["goodput_down"] = max(0.0, (dl_bytes - prev['dl_bytes']) * 8e-6 / dt)
+                    ue_data["goodput_up"] = max(0.0, (ul_bytes - prev['ul_bytes']) * 8e-6 / dt)
+                else:
+                    ue_data["goodput_down"] = 0.0
+                    ue_data["goodput_up"] = 0.0
+                goodput_tracking[rnti] = {'dl_bytes': dl_bytes, 'ul_bytes': ul_bytes, 'time': now}
 
                 # Calculate max PRBs from samples collected during interval
                 rnti = ue_data["rnti"]

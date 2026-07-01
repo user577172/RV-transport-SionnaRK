@@ -22,7 +22,7 @@ check_docker_group() {
 
 # Default values
 path="$(pwd)"
-tag="v2.0.1"
+tag="v2.1.10"
 debug_opts=""
 
 check_docker_group

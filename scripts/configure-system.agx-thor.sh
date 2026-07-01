@@ -112,6 +112,9 @@ fi
 # TODO: cannot install requirements because tensorrt needs to come from OS.
 # therefore, requirements.txt does not work inside an environment as is.
 
+# install ZMQ required for channel emulator
+sudo apt install -y libzmq5 libczmq-dev libcjson1 libcjson-dev
+
 base_dir=$(realpath $(dirname "${BASH_SOURCE[0]}")/../)
 
 #pushd $base_dir

@@ -78,4 +78,4 @@ EXAMPLES
 SEE ALSO
 ========
 
-:doc:`install-custom-kernel </scripts/install-custom-kernel>`
+:doc:`install-custom-kernel <install-custom-kernel>`

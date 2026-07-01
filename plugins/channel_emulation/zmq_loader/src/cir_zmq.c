@@ -76,8 +76,9 @@ static int zmq_thread_created = 0;
 static volatile int zmq_thread_idle_in_recv = 0;  // 1 when blocked in zmq_recv
 
 // CIR internal flat arrays (protected by mutex)
-static float sigma_scaling_val = 1.0f;
-static float sigma_max_val = 1.0f;
+// sigma defaults are set in cir_zmq_init(); see there.
+static float sigma_scaling_val;
+static float sigma_max_val;
 static float *norms_array = NULL;       // [S]
 static float *taps_array = NULL;        // [S * 2*T]
 static uint16_t *tap_indices_array = NULL; // [S * T]
@@ -382,7 +383,9 @@ int32_t cir_zmq_init(int num_taps_param,
         return -1;
     }
 
-    // Initialise defaults: sigma_scaling=1, sigma_max=1
+    // Initialise sigma defaults to an identity/pass-through channel
+    // (consistent with norms=1.0 and first-tap I=1.0) until the first
+    // CIR message arrives and overrides these.
     sigma_scaling_val = 1.0f;
     sigma_max_val = 1.0f;
 

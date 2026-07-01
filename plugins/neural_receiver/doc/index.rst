@@ -3,14 +3,14 @@
 5G NR PUSCH Neural Receiver
 ===========================
 
-.. figure:: ../../figs/tutorial_nrx_overview.png
+.. figure:: ../../../doc/source/figs/tutorial_nrx_overview.png
    :align: center
    :width: 600px
    :alt: Neural Receiver Overview
 
    Schematic overview of the Neural Receiver replacing the conventional receiver chain.
 
-This tutorial demonstrates the integration of a neural receiver [Wiesmayr2024]_ for the 5G NR Physical Uplink Shared Channel (PUSCH) into the Sionna Research Kit. The core idea is to replace the conventional physical layer receiver signal processing - specifically channel estimation, equalization, and demapping—with a single neural network. Unlike *classical* receivers, this architecture operates on an entire 5G NR slot, jointly processing the full OFDM time-frequency resource grid to reconstruct the transmitted bits. For comprehensive background on neural receivers, please refer to the `Sionna Neural Receiver Tutorial <https://nvlabs.github.io/sionna/phy/tutorials/Neural_Receiver.html>`_.
+This tutorial demonstrates the integration of a neural receiver [Wiesmayr2024]_ for the 5G NR Physical Uplink Shared Channel (PUSCH) into the Sionna Research Kit (see also [Cammerer2023]_ for related work on neural receivers for multi-user MIMO). The core idea is to replace the conventional physical layer receiver signal processing - specifically channel estimation, equalization, and demapping—with a single neural network. Unlike *classical* receivers, this architecture operates on an entire 5G NR slot, jointly processing the full OFDM time-frequency resource grid to reconstruct the transmitted bits. For comprehensive background on neural receivers, please refer to the `Sionna Neural Receiver Tutorial <https://nvlabs.github.io/sionna/phy/tutorials/Neural_Receiver.html>`_.
 
 The architecture is designed to be robust and universal, capable of handling a wide range of channel conditions without overfitting to specific realizations. A key focus is real-time inference capability, targeting sub-1 ms inference latency (see [Wiesmayr2024]_ for details).
 
@@ -33,7 +33,10 @@ The following list summarizes the key implementation aspects:
 *   **CUDA Acceleration**: Custom CUDA kernels handle data pre-processing and post-processing to further minimize latency (e.g., converting input symbols to float16 and output LLRs to int16).
 *   **Single-User Processing**: Though the neural receiver is designed to support multi-user MIMO, we limit this tutorial to single-user processing.
 
-Note that for compatibility with the OAI shapes, we have slightly modified the tensor shapes in the neural receiver repository and, thus, checkout the ``sionna_rk`` branch of the neural receiver repository. This is not strictly necessary, but it simplifies the integration.
+Note that for compatibility with the OAI shapes, we have slightly modified the tensor shapes in the neural receiver repository and, thus, checkout the ``srk`` branch of the neural receiver repository. This is not strictly necessary, but it simplifies the integration.
+
+.. note::
+   The ONNX export pipeline in ``ext/neural_rx`` requires a separate Python environment with **Sionna 0.18** and **TensorFlow 2.15** (see ``ext/neural_rx/requirements.txt``). Pre-exported ONNX and TensorRT plan files are provided in ``plugins/neural_receiver/models/``; re-export is only needed if you retrain the model or change the PRB configuration.
 
 
 Running the Neural Receiver
@@ -43,7 +46,7 @@ To enable the neural receiver in the gNB, configure the shared library loader to
 
 .. code-block:: bash
 
-    GNB_EXTRA_OPTIONS="--loader.receiver.shlibversion _neural_rx" - --MACRLCs.[0].dl_max_mcs 10 --MACRLCs.[0].ul_max_mcs 10
+    GNB_EXTRA_OPTIONS="--loader.receiver.shlibversion _neural_rx --MACRLCs.[0].dl_max_mcs 10 --MACRLCs.[0].ul_max_mcs 10"
 
 As our receiver implementation is limited to 16-QAM, we limit the uplink MCS such that only 16-QAM is used. An extension to other modulations is possible but requires careful interfacing with the OAI stack.
 
