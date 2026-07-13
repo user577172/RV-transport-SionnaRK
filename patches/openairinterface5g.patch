@@ -11,15 +11,17 @@ index d1c6979e76..846a6b66ce 100644
 +# Generated files
 +host_product_family
 diff --git a/.gitmodules b/.gitmodules
-index 583c8d8758..14b8c4e9da 100644
+index 583c8d8758..b59dcaffa5 100644
 --- a/.gitmodules
 +++ b/.gitmodules
-@@ -1,4 +1,4 @@
+@@ -1,4 +1,5 @@
  [submodule "openair2/E2AP/flexric"]
  	path = openair2/E2AP/flexric
- 	url = ../flexric.git
+-	url = ../flexric.git
 -	branch = remotes/origin/2025_w34.internal
-+	branch = 2025_w34.internal
++	url = https://gitlab.eurecom.fr/mosaic5g/flexric.git
++	branch = remotes/origin/service-models-integration
++
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index a71b1c3ea2..e721041ce5 100644
 --- a/CMakeLists.txt

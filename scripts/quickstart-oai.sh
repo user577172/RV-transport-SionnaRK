@@ -83,9 +83,17 @@ else
 fi
 
 # checkout openairinterface5g (submodules will be initialized after patching)
+# Default to the public upstream repository. In CI, an internal mirror can be
+# provided via the OAI_REPO_URL environment variable to avoid rate limits and
+# keep the URL out of this script.
+oai_repo_url="https://gitlab.eurecom.fr/oai/openairinterface5g.git"
+if [ "$ci" = "1" ] && [ -n "${OAI_REPO_URL:-}" ]; then
+    oai_repo_url="$OAI_REPO_URL"
+fi
+
 echo "Fetch OpenAirInterface..."
 echo "Cloning version: $OAI_VERSION"
-git clone --branch "$OAI_VERSION" https://gitlab.eurecom.fr/oai/openairinterface5g.git "$dest_dir"
+git clone --branch "$OAI_VERSION" "$oai_repo_url" "$dest_dir"
 
 echo "Applying SRK patches..."
 pushd "$dest_dir"
