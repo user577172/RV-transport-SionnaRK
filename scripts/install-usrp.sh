@@ -52,7 +52,7 @@ FORCE=0
 CI=0
 VERBOSE=0
 DRYRUN=0
-BRANCH=""
+BRANCH="v4.10.0.0"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
