@@ -1,0 +1,2 @@
+f56751828aadb606d90e0d0ca3f5b3d49884b806c0f1a73ef7ecd7040aea18ce  /home/ubuntu/sionna-rk/ext/openairinterface5g/cmake_targets/ran_build/build/nr-softmodem
+4c4acbcdb807d5ed89f59446a5400d371b8a117dfc2e6fbdf583319cd01726e6  /home/ubuntu/sionna-rk/ext/openairinterface5g/cmake_targets/ran_build/build/nr-uesoftmodem
