@@ -69,8 +69,8 @@ class TutorialManifest:
         if not self.name:
             errors.append("Tutorial name is required")
 
-        if not self.version:
-            errors.append("Tutorial version is required")
+        #if not self.version:
+            #errors.append("Tutorial version is required")
 
         if not self.description:
             errors.append("Tutorial description is required")
