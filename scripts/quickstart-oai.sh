@@ -10,7 +10,7 @@ check-license
 
 # functions
 function usage() {
-    echo "Usage: $0 [-h|--help] [--clean] [--debug] [--no-build] [--tag <tagname>] [--ci] [--oai-version <oai-version>] --source <kit-rootdir> --dest <openairinterface5g_dir>"
+    echo "Usage: $0 [-h|--help] [--clean] [--debug] [--no-build] [--install-deps] [--enable-gpu] [--tag <tagname>] [--ci] [--oai-version <oai-version>] --source <kit-rootdir> --dest <openairinterface5g_dir>"
     exit 1
 }
 
@@ -36,6 +36,8 @@ no_build=0
 no_tutorials=0
 debug=0
 ci=0
+install_deps=0
+cpu_only=${SIONNA_RK_CPU_ONLY:-1}
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -47,6 +49,8 @@ while [[ $# -gt 0 ]]; do
         --oai-version) OAI_VERSION="$2"; shift ;;
         --clean) clean_dest=1 ;;
         --no-build) no_build=1 ;;
+        --install-deps) install_deps=1 ;;
+        --enable-gpu) cpu_only=0 ;;
         --debug) debug=1 ;;
         --ci) ci=1 ;;
         *) usage; exit 1 ;;
@@ -65,7 +69,8 @@ dest_dir=$(realpath -sm "$dest_dir")
 
 echo "source: $source_dir"
 echo "dest: $dest_dir"
-echo "arch: $arch"
+echo "arch: $(uname -m)"
+echo "CPU-only: $cpu_only"
 
 # If clean install, remove destination directory
 if [ "$clean_dest" = "1" ] && [ -d "$dest_dir" ]; then
@@ -106,14 +111,27 @@ pushd "$dest_dir"
 git submodule update --init --recursive
 popd
 
+if [ "$cpu_only" = "1" ] && [ ! -e "${dest_dir}/plugins" ]; then
+    ln -s "${source_dir}/plugins" "${dest_dir}/plugins"
+fi
+
 if [ "$no_build" = "0" ]; then
-    echo "Build OAI images..."
-    extra_opts=""
-    if [ "$debug" = "1" ]; then
-        extra_opts="$extra_opts --debug"
+    if [ "$cpu_only" = "1" ]; then
+        echo "Build OAI natively in CPU-only mode..."
+        native_opts=""
+        if [ "$install_deps" = "1" ]; then
+            native_opts="--install-deps"
+        fi
+        SIONNA_RK_CPU_ONLY=1 "${source_dir}/scripts/build-oai-native.sh" $native_opts "$dest_dir"
+    else
+        echo "Build NVIDIA CUDA images..."
+        extra_opts=""
+        if [ "$debug" = "1" ]; then
+            extra_opts="$extra_opts --debug"
+        fi
+        if [ "$ci" = "1" ]; then
+            extra_opts="$extra_opts --ci"
+        fi
+        SIONNA_RK_CPU_ONLY=0 "${source_dir}/scripts/build-oai-images.sh" $extra_opts --tag "$TAG" "$dest_dir"
     fi
-    if [ "$ci" = "1" ]; then
-        extra_opts="$extra_opts --ci"
-    fi
-    "${source_dir}/scripts/build-oai-images.sh" $extra_opts --tag "$TAG" "$dest_dir"
 fi

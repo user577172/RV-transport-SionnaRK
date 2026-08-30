@@ -10,23 +10,30 @@ index d1c6979e76..846a6b66ce 100644
 +
 +# Generated files
 +host_product_family
-diff --git a/.gitmodules b/.gitmodules
-index 583c8d8758..b59dcaffa5 100644
---- a/.gitmodules
-+++ b/.gitmodules
-@@ -1,4 +1,5 @@
- [submodule "openair2/E2AP/flexric"]
- 	path = openair2/E2AP/flexric
--	url = ../flexric.git
--	branch = remotes/origin/2025_w34.internal
-+	url = https://gitlab.eurecom.fr/mosaic5g/flexric.git
-+	branch = remotes/origin/service-models-integration
-+
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index a71b1c3ea2..e721041ce5 100644
+index a71b1c3ea2..ece44ee7c4 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -2142,6 +2142,16 @@ endif (${T_TRACER})
+@@ -163,13 +163,16 @@ elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+   else ()
+     set(C_FLAGS_PROCESSOR "${C_FLAGS_PROCESSOR} -gdwarf-2 -mcpu=native -lgcc -lrt")
+   endif()
++elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++  # RISC-V uses SIMDe portable fallbacks; no x86 or ARM native intrinsics.
++  set(C_FLAGS_PROCESSOR "${C_FLAGS_PROCESSOR} -gdwarf-2 -lgcc -lrt")
+ else()
+   message(FATAL_ERROR "compile for CPU architecture ${CPUARCH}, CMAKE_SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR}")
+ endif()
+ 
+-if (NOT CROSS_COMPILE)
++if (NOT CROSS_COMPILE AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+   set(C_FLAGS_PROCESSOR "${C_FLAGS_PROCESSOR} -march=native")
+-else ()
++elseif(CROSS_COMPILE)
+   set(C_FLAGS_PROCESSOR "${C_FLAGS_PROCESSOR} -march=armv8-a")
+ endif()
+ 
+@@ -2142,6 +2145,16 @@ endif (${T_TRACER})
  include(${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nrLDPC_tools/CMakeLists.txt)
  
  set(ENABLE_TESTS OFF CACHE STRING "Activate build of tests")
@@ -43,13 +50,99 @@ index a71b1c3ea2..e721041ce5 100644
  set_property(CACHE ENABLE_TESTS PROPERTY TYPE BOOL)
  set(ENABLE_PHYSIM_TESTS OFF CACHE STRING "Activate build of physim tests")
  set_property(CACHE ENABLE_PHYSIM_TESTS PROPERTY TYPE BOOL)
-@@ -2187,3 +2197,6 @@ add_subdirectory(openair2)
+@@ -2187,3 +2200,6 @@ add_subdirectory(openair2)
  add_subdirectory(openair3)
  add_subdirectory(radio)
  add_subdirectory(tests)
 +if (ENABLE_PLUGINS)
 +  add_subdirectory(plugins)
 +endif ()
+diff --git a/cmake_targets/build_oai b/cmake_targets/build_oai
+index 658b0b858a..24620ce90c 100755
+--- a/cmake_targets/build_oai
++++ b/cmake_targets/build_oai
+@@ -457,7 +457,12 @@ function main() {
+     # add some default libraries that should always be built
+     # for eNB, gNB, UEs, simulators
+     if [[ $gNB == 1 || $eNB == 1 || $UE == 1 || $nrUE == 1 || $SIMUS_PHY == 1 || $RU == 1 ]]; then
+-      TARGET_LIST="$TARGET_LIST params_libconfig coding rfsimulator dfts params_yaml vrtsim rf_emulator"
++      if [[ "$(uname -m)" == "riscv64" ]]; then
++        # Legacy LTE turbo coding contains x86 SSE/MMX-only sources; NR uses LDPC/polar targets.
++        TARGET_LIST="$TARGET_LIST params_libconfig rfsimulator dfts params_yaml vrtsim rf_emulator"
++      else
++        TARGET_LIST="$TARGET_LIST params_libconfig coding rfsimulator dfts params_yaml vrtsim rf_emulator"
++      fi
+     fi
+ 
+     mkdir -p $DIR/$BUILD_DIR/build
+diff --git a/cmake_targets/tools/build_helper b/cmake_targets/tools/build_helper
+index 49edfa91e8..6f692891f8 100755
+--- a/cmake_targets/tools/build_helper
++++ b/cmake_targets/tools/build_helper
+@@ -103,6 +103,7 @@ get_distribution_release() {
+ check_supported_distribution() {
+     local distribution=$(get_distribution_release)
+     case "$distribution" in
++        "ubuntu26.04") return 0 ;;
+         "ubuntu24.04") return 0 ;;
+         "ubuntu22.04") return 0 ;;
+         "ubuntu20.04") return 0 ;;
+@@ -575,7 +576,12 @@ install_asn1c_from_source(){
+     # Showing which version is used
+     git log -n1
+     autoreconf -iv
+-    ./configure --prefix /opt/asn1c/
++    if [[ "$(uname -m)" == "riscv64" ]]; then
++        # asn1c 0.9.29 triggers invalid pointer accesses when optimized on RV64.
++        CFLAGS="-O0 -g3" CXXFLAGS="-O0 -g3" ./configure --prefix /opt/asn1c/
++    else
++        ./configure --prefix /opt/asn1c/
++    fi
+     make -j`nproc`
+     $SUDO make install
+     cd -
+@@ -587,9 +593,27 @@ install_asn1c_from_source(){
+ 
+ install_simde_from_source(){
+     echo_info "\nInstalling SIMDE from source without test cases (header files only)"
++    if [[ -f /usr/include/simde/simde-common.h ]]; then
++      echo_info "SIMDE headers already installed; skipping download"
++      return 0
++    fi
+     cd /tmp
+     $SUDO rm -rf /tmp/simde
+-    git clone https://github.com/simd-everywhere/simde-no-tests.git /tmp/simde
++    for attempt in 1 2 3; do
++      git -c http.version=HTTP/1.1 clone https://github.com/simd-everywhere/simde-no-tests.git /tmp/simde && break
++      echo_warning "SIMDE download failed (attempt ${attempt}/3)"
++      $SUDO rm -rf /tmp/simde
++    done
++    if [[ ! -d /tmp/simde/.git ]]; then
++      if [[ "$OS_DISTRO" == "ubuntu" ]]; then
++        echo_warning "GitHub unavailable; falling back to Ubuntu libsimde-dev"
++        $SUDO apt-get update
++        $SUDO apt-get install -y libsimde-dev
++        return $?
++      fi
++      echo_error "Unable to install SIMDE headers"
++      return 1
++    fi
+     cd /tmp/simde
+     # we can specify a given version of SIMDE (sha-one or tag)
+     if [[ -v SIMDE_VERSION ]]; then
+diff --git a/common/utils/LOG/log.c b/common/utils/LOG/log.c
+index 1fe2280c15..17c757dddc 100644
+--- a/common/utils/LOG/log.c
++++ b/common/utils/LOG/log.c
+@@ -61,7 +61,7 @@
+ 
+ // Fixme: a better place to be shure it is called 
+ void read_cpu_hardware (void) __attribute__ ((constructor));
+-#if !defined(__arm__) && !defined(__aarch64__) 
++#if defined(__i386__) || defined(__x86_64__)
+   void read_cpu_hardware (void) {__builtin_cpu_init(); }
+ #else 
+   void read_cpu_hardware (void) {}
 diff --git a/common/utils/actor/actor.h b/common/utils/actor/actor.h
 index 023533d2d7..c6be9b1d1f 100644
 --- a/common/utils/actor/actor.h
@@ -79,6 +172,19 @@ index 825012ce6a..c8f8834b76 100644
        if (!farray[i].fptr) {
          fprintf(stderr, "[LOADER] load_module_shlib(): function %s not found: %s\n",
                    farray[i].fname, dlerror());
+diff --git a/common/utils/threadPool/task_ans.h b/common/utils/threadPool/task_ans.h
+index 2fa7d0fc83..603c6cf916 100644
+--- a/common/utils/threadPool/task_ans.h
++++ b/common/utils/threadPool/task_ans.h
+@@ -43,7 +43,7 @@ extern "C" {
+ 
+ #if defined(__i386__) || defined(__x86_64__)
+ #define LEVEL1_DCACHE_LINESIZE 64
+-#elif defined(__aarch64__)
++#elif defined(__aarch64__) || defined(__riscv)
+ // This is not always true for ARM
+ // in linux, you can obtain the size at runtime using sysconf (_SC_LEVEL1_DCACHE_LINESIZE)
+ // or from the bash with the command $ getconf LEVEL1_DCACHE_LINESIZE
 diff --git a/common/utils/threadPool/thread-pool.c b/common/utils/threadPool/thread-pool.c
 index 2a31602e6e..95191d3d11 100644
 --- a/common/utils/threadPool/thread-pool.c
@@ -154,6 +260,42 @@ index 2a31602e6e..95191d3d11 100644
    free(args);
    return NULL;
  }
+diff --git a/common/utils/time_meas.h b/common/utils/time_meas.h
+index de79a0252d..9fc2224194 100644
+--- a/common/utils/time_meas.h
++++ b/common/utils/time_meas.h
+@@ -35,7 +35,7 @@
+ extern int cpu_meas_enabled;
+ extern double cpu_freq_GHz  __attribute__ ((aligned(32)));;
+ // structure to store data to compute cpu measurment
+-#if defined(__x86_64__) || defined(__i386__) || defined(__arm__) || defined(__aarch64__)
++#if defined(__x86_64__) || defined(__i386__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv)
+   typedef long long oai_cputime_t;
+ #else
+   #error "building on unsupported CPU architecture"
+@@ -100,6 +100,22 @@ static inline unsigned long long rdtsc_oai(void) {
+   __asm__ volatile ("rdtsc" : "=a" (a), "=d" (d));
+   return (d<<32) | a;
+ }
++#elif defined(__riscv)
++/*
++ * Linux may disable user-space access to the RISC-V cycle counter.  Using
++ * rdcycle then raises SIGILL on K3, so use the kernel-provided monotonic clock.
++ * The returned unit is nanoseconds; get_cpu_freq_GHz() consequently evaluates
++ * to 1.0 and the existing cycle-to-time formulas remain valid.
++ */
++static inline uint64_t rdtsc_oai(void) __attribute__((always_inline));
++static inline uint64_t rdtsc_oai(void)
++{
++  struct timespec ts;
++  if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0)
++    return 0;
++  return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
++}
++
+ #elif defined(__aarch64__)
+ static inline uint64_t rdtsc_oai(void) __attribute__((always_inline));
+ static inline uint64_t rdtsc_oai(void)
 diff --git a/detect_host.sh b/detect_host.sh
 new file mode 100755
 index 0000000000..92e06a28e2
@@ -1443,6 +1585,33 @@ index 3fece46ac8..826298acd2 100644
    for (int pusch_id = 0; pusch_id < nrLDPC_slot_decoding_parameters->nb_TBs; pusch_id++) {
      nrLDPC_TB_decoding_parameters_t *nrLDPC_TB_decoding_parameters = &nrLDPC_slot_decoding_parameters->TBs[pusch_id];
      for (int r = 0; r < nrLDPC_TB_decoding_parameters->C; r++) {
+diff --git a/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c b/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c
+index 5d0e90e46b..07b977372f 100644
+--- a/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c
++++ b/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c
+@@ -157,6 +157,22 @@ static void write_task_output(uint8_t *f,
+     output_p++;
+   }
+        
++#elif defined(__riscv)
++  // Portable scalar fallback. Each input byte contains one bit from up to
++  // eight segments; write each segment contiguously into the packed output.
++  uint32_t segment_offset = Eoffset;
++  for (uint32_t j = 0; j < nb_segments; j++) {
++    const bool first_group = j < E2_first_segment;
++    const uint8_t *src = first_group ? f : f2;
++    const uint32_t segment_bits = first_group ? E : E2;
++    for (uint32_t i = 0; i < segment_bits; i++) {
++      const uint8_t bit = (src[i] >> j) & 1U;
++      const uint32_t output_bit = segment_offset + i;
++      output[output_bit >> 3] |= bit << (output_bit & 7);
++    }
++    segment_offset += segment_bits;
++  }
++
+ #else
+   uint32_t *output_p = (uint32_t*)output;
+ 
 diff --git a/openair1/PHY/CODING/nrLDPC_decoder/nrLDPC_decoder.c b/openair1/PHY/CODING/nrLDPC_decoder/nrLDPC_decoder.c
 index d3b9a58da1..4e369950e7 100644
 --- a/openair1/PHY/CODING/nrLDPC_decoder/nrLDPC_decoder.c
@@ -2057,6 +2226,19 @@ index 3f4660744d..bd4f56baf6 100644
        // Calculation of a group of two terms in the bit metric involving product of psi and interference
        psi_a_s[j] = prodsum_psi_a_epi16_256(psi_r_s[j], a_r_s[j], psi_i_s[j], a_i_s[j]);
  
+diff --git a/openair1/PHY/TOOLS/oai_dfts.c b/openair1/PHY/TOOLS/oai_dfts.c
+index 1a86bfdc27..ed96183e99 100644
+--- a/openair1/PHY/TOOLS/oai_dfts.c
++++ b/openair1/PHY/TOOLS/oai_dfts.c
+@@ -19,7 +19,7 @@
+  *      contact@openairinterface.org
+  */
+ 
+-#if defined(__x86_64__) || defined(__i386__)
++#if defined(__x86_64__) || defined(__i386__) || defined(__riscv)
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
 diff --git a/openair1/PHY/defs_RU.h b/openair1/PHY/defs_RU.h
 index e72465c4a9..0601d728d0 100644
 --- a/openair1/PHY/defs_RU.h

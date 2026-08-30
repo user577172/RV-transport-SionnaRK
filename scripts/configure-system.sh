@@ -7,7 +7,7 @@
 # functions
 function usage() {
     echo "Usage: $0 [-h|--help] [--force-platform <platform>] [--verbose] [--dry-run]"
-    echo "Platforms: agx-orin, agx-thor, orin-nano, dgx-spark"
+    echo "Platforms: k3, agx-orin, agx-thor, orin-nano, dgx-spark"
     exit 1
 }
 
@@ -61,6 +61,12 @@ done
 echo "Platform: $platform"
 echo "Model: $model"
 echo "Family: $family"
+
+if [ "$platform" == "k3" ] || ([ "$(uname -m)" == "riscv64" ] && [ "$platform" == "unknown" ]); then
+    echo "Configuring system as 'K3 Pico-ITX' in CPU-only mode"
+    execute "${source_dir}/scripts/configure-system.k3.sh"
+    exit 0
+fi
 
 # select the script according to platform
 if [ "$platform" == "agx-orin" ] || ([ "$model" == "NVIDIA Jetson AGX Orin Developer Kit" ] && [ "$platform" == "unknown" ]); then

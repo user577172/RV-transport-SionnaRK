@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..229917d
 --- /dev/null
 +++ .env
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,83 @@
 +# =============================================================================
 +# Config Files
 +# =============================================================================
@@ -12,15 +12,12 @@ index 0000000..229917d
 +# Changing the number of PRBs requires to also update accordingly the UE_EXTRA_OPTIONS parameter below
 +GNB_CONFIG="../common/gnb.sa.band78.106prbs.conf"
 +
-+CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps
-+CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-log
-+
 +# =============================================================================
 +# Image Tags
 +# =============================================================================
 +
-+GNB_IMAGE=oai-gnb-cuda
-+UE_IMAGE=oai-nr-ue-cuda
++GNB_IMAGE=oai-gnb
++UE_IMAGE=oai-nr-ue
 +
 +GNB_TAG=latest
 +UE_TAG=latest

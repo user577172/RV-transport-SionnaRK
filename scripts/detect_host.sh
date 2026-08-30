@@ -7,6 +7,12 @@
 # default values
 family="Unknown"
 model="Unknown"
+arch=$(uname -m)
+
+if [ "$arch" == "riscv64" ]; then
+    echo "K3 Pico-ITX"
+    exit 0
+fi
 
 if [ -f "/sys/devices/virtual/dmi/id/product_family" ]; then
     family=$(cat /sys/devices/virtual/dmi/id/product_family)

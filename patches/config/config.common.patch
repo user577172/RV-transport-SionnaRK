@@ -139,7 +139,7 @@ index d531b15..a766cc0 100644
          depends_on:
              - oai-upf
          networks:
-@@ -84,320 +91,114 @@ services:
+@@ -84,320 +91,110 @@ services:
                  ipv4_address: 192.168.72.135
          healthcheck:
              test: /bin/bash -c "ping -c 2 192.168.72.134"
@@ -153,10 +153,9 @@ index d531b15..a766cc0 100644
 -        container_name: rfsim5g-oai-gnb
 -        cap_add:
 -            - SYS_NICE
-+        image: ${GNB_IMAGE:-oai-gnb-cuda}:${GNB_TAG:-latest}
++        image: ${GNB_IMAGE:-oai-gnb}:${GNB_TAG:-latest}
 +        container_name: oai-gnb
 +        user: ${USER_ID:-0}:${GROUP_ID:-0}
-+        runtime: nvidia
          cap_drop:
              - ALL
 +        cap_add:
@@ -181,8 +180,6 @@ index d531b15..a766cc0 100644
 +            - /dev/bus/usb/:/dev/bus/usb/
          volumes:
 -            - ../../conf_files/gnb.sa.band78.106prb.rfsim.yaml:/opt/oai-gnb/etc/gnb.yaml
-+            - /tmp/nvidia-mps:/tmp/nvidia-mps
-+            - /tmp/nvidia-log:/tmp/nvidia-log
 +            - ${GNB_CONFIG:-../common/gnb.sa.usrpb200.24prbs.conf}:/opt/oai-gnb/etc/gnb.conf
 +            - ../../plugins:/opt/oai-gnb/plugins # mount all plugins for weights, logs, data capture, etc.
 +        ipc: host
@@ -199,9 +196,8 @@ index d531b15..a766cc0 100644
 -        container_name: rfsim5g-oai-nr-ue
 -        cap_drop:
 -            - ALL
-+        image: ${UE_IMAGE:-oai-nr-ue-cuda}:${UE_TAG:-latest}
++        image: ${UE_IMAGE:-oai-nr-ue}:${UE_TAG:-latest}
 +        container_name: oai-nr-ue
-+        runtime: nvidia
          cap_add:
              - NET_ADMIN  # for interface bringup
              - NET_RAW    # for ping

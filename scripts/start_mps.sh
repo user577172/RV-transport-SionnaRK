@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ "${SIONNA_RK_CPU_ONLY:-1}" = "1" ]; then
+    echo "NVIDIA MPS is disabled in CPU-only mode."
+    exit 0
+fi
+
+
 export CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps
 export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-log
 

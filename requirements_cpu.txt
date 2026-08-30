@@ -1,0 +1,10 @@
+# Python dependencies for the K3/RV64 CPU-only baseline.
+# NVIDIA TensorRT and nvidia-modelopt are intentionally excluded.
+numpy
+matplotlib
+nanobind
+onnx
+onnxscript
+pytest
+pyzmq
+pyyaml

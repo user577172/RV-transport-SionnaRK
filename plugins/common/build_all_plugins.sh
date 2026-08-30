@@ -36,6 +36,10 @@ done
 # Export so it's available to build scripts
 export BUILD_TARGET
 
+# K3/RV64 uses the CPU-only baseline by default.
+CPU_ONLY="${SIONNA_RK_CPU_ONLY:-1}"
+GPU_ONLY_PLUGINS=" ldpc_cuda neural_demapper neural_receiver channel_emulation "
+
 # Get the absolute path of the script and plugins directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PLUGINS_DIR="$(dirname "$SCRIPT_DIR")"
@@ -53,6 +57,12 @@ find "$PLUGINS_DIR" -maxdepth 2 -name "tutorial.yaml" | while read config_file; 
     plugin_name=$(basename "$plugin_dir")
 
     echo "Processing plugin: $plugin_name"
+
+    if [ "$CPU_ONLY" = "1" ] && [[ "$GPU_ONLY_PLUGINS" == *" $plugin_name "* ]]; then
+        echo "  Build skipped: GPU-only plugin is disabled in CPU-only mode"
+        echo "----------------------------------------"
+        continue
+    fi
 
     # Parse YAML using python to get build configuration
     # We output shell variable assignments to be evaluated

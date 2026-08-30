@@ -8,16 +8,16 @@ description: End-to-end neural receiver implementation
 
 tests:
   unit:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: pytest tests/unit -v
   integration:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: ./tests/integration/run_integration.sh
 
 build:
   host:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: ./scripts/build-trt-plans.sh --plan ./models/nrx_oai.host.plan
   container:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: docker run --runtime=nvidia -v ../../plugins/:/mnt/plugins -v ../../ext/neural_rx:/mnt/neural_rx --rm -t ran-build-cuda:latest /mnt/plugins/neural_receiver/scripts/build-trt-plans.sh --onnx /mnt/neural_rx/onnx_models/nrx_oai.onnx --plan /mnt/plugins/neural_receiver/models/nrx_oai.plan

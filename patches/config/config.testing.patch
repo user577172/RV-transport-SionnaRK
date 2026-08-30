@@ -15,8 +15,8 @@ index 0000000..febf5bd
 +# Image Tags
 +# =============================================================================
 +
-+GNB_IMAGE=oai-gnb-cuda
-+UE_IMAGE=oai-nr-ue-cuda
++GNB_IMAGE=oai-gnb
++UE_IMAGE=oai-nr-ue
 +
 +GNB_TAG=latest
 +UE_TAG=latest

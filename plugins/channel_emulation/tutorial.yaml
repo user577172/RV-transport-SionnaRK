@@ -8,13 +8,13 @@ description: CUDA channel emulator with file-based and ZMQ CIR sources
 
 tests:
   unit:
-    enabled: true
+    enabled: false # CUDA emulator disabled for the K3 CPU baseline
     command: |
       pytest cuda_emulator/tests/unit -v
       pytest file_loader/tests/unit -v
       pytest zmq_loader/tests/unit -v
   integration:
-    enabled: true
+    enabled: false # CUDA emulator disabled for the K3 CPU baseline
     command: "tests/integration/run_integration.sh"
 
 build:

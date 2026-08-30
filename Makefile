@@ -3,35 +3,34 @@
 ## SPDX-License-Identifier: Apache-2.0
 ##
 
-GPU=
-ifdef gpus
-    GPU=--gpus=$(gpus)
-endif
-export GPU
+CPU_ONLY ?= 1
+export SIONNA_RK_CPU_ONLY := $(CPU_ONLY)
 
 .PHONY: doc prepare-system sionna-rk build-gnb
 
 prepare-system:
 	./scripts/configure-system.sh
-	./scripts/build-custom-kernel.sh
-	./scripts/install-custom-kernel.sh
-	echo "Reboot to load the new kernel and continue the installation."
+	@if [ "$(CPU_ONLY)" != "1" ]; then \
+		./scripts/build-custom-kernel.sh; \
+		./scripts/install-custom-kernel.sh; \
+		echo "Reboot to load the new kernel and continue the installation."; \
+	else \
+		echo "CPU-only mode: skipping NVIDIA L4T custom kernel steps."; \
+	fi
 
 sionna-rk:
 	./scripts/quickstart-oai.sh
 	./scripts/generate-configs.sh
 	./plugins/common/build_all_plugins.sh --host
-	./plugins/common/build_all_plugins.sh --container
 
 build-gnb:
-	./scripts/build-oai-images.sh --debug ext/openairinterface5g
+	./scripts/build-oai-native.sh ext/openairinterface5g
 
 doc: FORCE
 	cd doc && ./build_docs.sh
 
 test:
 	./plugins/common/build_all_plugins.sh --host
-	./plugins/common/build_all_plugins.sh --container
 	./plugins/testing/run_all_tests.sh --host
 
 FORCE:

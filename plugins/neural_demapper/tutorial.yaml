@@ -8,16 +8,16 @@ description: Neural network-based demapper with TensorRT acceleration
 
 tests:
   unit:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: pytest tests/unit -v
   integration:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: ./tests/integration/run_integration.sh
 
 build:
   host:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: ./scripts/build-trt-plans.sh --plan ./models/neural_demapper.2xfloat16.host.plan
   container:
-    enabled: true
+    enabled: false # TensorRT/CUDA disabled for the K3 CPU baseline
     command: docker run --runtime=nvidia -v ../../plugins/:/mnt/plugins --rm -t ran-build-cuda:latest /mnt/plugins/neural_demapper/scripts/build-trt-plans.sh --plan /mnt/plugins/neural_demapper/models/neural_demapper.2xfloat16.plan

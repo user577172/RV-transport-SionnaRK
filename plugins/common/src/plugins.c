@@ -30,8 +30,10 @@ void free_plugins()
 {
     // insert your plugin release/free here.
 
-    free_demapper_lib(&demapper_interface);
-    free_receiver_lib(&receiver_interface);
+    if (demapper_interface.shutdown)
+        free_demapper_lib(&demapper_interface);
+    if (receiver_interface.shutdown)
+        free_receiver_lib(&receiver_interface);
     free_channel_emulator_libs();
 }
 

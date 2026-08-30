@@ -4,6 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if [ "${SIONNA_RK_CPU_ONLY:-1}" = "1" ]; then
+    echo "NVIDIA CUDA image build is disabled in CPU-only mode." >&2
+    echo "Use ./scripts/build-oai-native.sh instead." >&2
+    exit 2
+fi
+
 # functions
 function usage() {
     echo "Usage: $0 [-h|--help] [--debug] [--tag <tagname>] [--no-cache] [--ci] [--force-platform <platform>] <openairinterface5g_dir>"

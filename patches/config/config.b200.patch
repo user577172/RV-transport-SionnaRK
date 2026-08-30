@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..f71e8f6
 --- /dev/null
 +++ .env
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,83 @@
 +# =============================================================================
 +# Config Files
 +# =============================================================================
@@ -11,16 +11,13 @@ index 0000000..f71e8f6
 +SYSTEM_CONFIG="../common/sys_config.yaml"
 +GNB_CONFIG="../common/gnb.sa.band78.24prbs.conf"
 +
-+CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps
-+CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-log
-+
 +# =============================================================================
 +# Image Tags
 +# =============================================================================
 +
-+GNB_IMAGE=oai-gnb-cuda
++GNB_IMAGE=oai-gnb
 +GNB_TAG=latest
-+UE_IMAGE=oai-nr-ue-cuda
++UE_IMAGE=oai-nr-ue
 +UE_TAG=latest
 +AMF_TAG=v2.1.10
 +SMF_TAG=v2.1.10

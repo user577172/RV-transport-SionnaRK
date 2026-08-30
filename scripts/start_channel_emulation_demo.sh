@@ -1,4 +1,10 @@
 #!/bin/bash
+
+if [ "${SIONNA_RK_CPU_ONLY:-1}" = "1" ]; then
+    echo "CUDA channel emulation demo is disabled in CPU-only mode." >&2
+    exit 2
+fi
+
 #
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0

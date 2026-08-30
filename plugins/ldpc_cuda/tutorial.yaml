@@ -8,10 +8,10 @@ description: GPU-accelerated LDPC encoding and decoding
 
 tests:
   unit:
-    enabled: true
+    enabled: false # GPU-only; disabled for the K3 CPU baseline
     command: pytest tests/unit -v
   integration:
-    enabled: true
+    enabled: false # GPU-only; disabled for the K3 CPU baseline
     command: ./tests/integration/run_integration.sh
 
 build:
