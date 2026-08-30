@@ -1007,10 +1007,40 @@ index 0000000000..44cb76bd38
 +CMD ["/opt/oai-nr-ue/bin/nr-uesoftmodem"]
 +ENTRYPOINT ["/tini", "-v", "--", "/opt/oai-nr-ue/bin/entrypoint.sh"]
 diff --git a/executables/nr-gnb.c b/executables/nr-gnb.c
-index 24870544b8..0eac7b14d6 100644
+index 24870544b8..79ccb1cf3f 100644
 --- a/executables/nr-gnb.c
 +++ b/executables/nr-gnb.c
-@@ -327,7 +327,8 @@ void init_gNB_Tpool(int inst)
+@@ -234,6 +234,14 @@ static size_t dump_L1_meas_stats(PHY_VARS_gNB *gNB, RU_t *ru, char *output, size
+   output += print_meas_log(&gNB->ts_deinterleave, "UL segment deinterleaving", NULL, NULL, output, end - output);
+   output += print_meas_log(&gNB->ts_rate_unmatch, "UL segment rate recovery", NULL, NULL, output, end - output);
+   output += print_meas_log(&gNB->ts_ldpc_decode, "UL segments decoding", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->ulsch_decoding_stats, "ULSCH decoding total", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->ulsch_channel_estimation_stats, "PUSCH channel estimation", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->ulsch_channel_measurement_stats, "PUSCH channel measurement", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->rx_pusch_init_stats, "PUSCH initialization", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->rx_pusch_symbol_processing_stats, "PUSCH symbol processing", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->ulsch_resource_extraction_stats, "PUSCH resource extraction", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->ulsch_channel_compensation_stats, "PUSCH channel compensation", NULL, NULL, output, end - output);
++  output += print_meas_log(&gNB->ulsch_llr_stats, "PUSCH LLR computation", NULL, NULL, output, end - output);
+   output += print_meas_log(&gNB->ul_indication_stats, "UL Indication", NULL, NULL, output, end - output);
+   output += print_meas_log(&gNB->slot_indication_stats, "Slot Indication", NULL, NULL, output, end - output);
+   output += print_meas_log(&gNB->rx_pusch_stats, "PUSCH inner-receiver", NULL, NULL, output, end - output);
+@@ -294,6 +302,14 @@ void *nrL1_stats_thread(void *param) {
+   reset_meas(&gNB->ts_deinterleave);
+   reset_meas(&gNB->ts_rate_unmatch);
+   reset_meas(&gNB->ts_ldpc_decode);
++  reset_meas(&gNB->ulsch_decoding_stats);
++  reset_meas(&gNB->ulsch_channel_estimation_stats);
++  reset_meas(&gNB->ulsch_channel_measurement_stats);
++  reset_meas(&gNB->rx_pusch_init_stats);
++  reset_meas(&gNB->rx_pusch_symbol_processing_stats);
++  reset_meas(&gNB->ulsch_resource_extraction_stats);
++  reset_meas(&gNB->ulsch_channel_compensation_stats);
++  reset_meas(&gNB->ulsch_llr_stats);
+   reset_meas(&gNB->ul_indication_stats);
+   reset_meas(&gNB->slot_indication_stats);
+   reset_meas(&gNB->rx_pusch_stats);
+@@ -327,7 +343,8 @@ void init_gNB_Tpool(int inst)
    gNB = RC.gNB[inst];
    gNB_L1_proc_t *proc = &gNB->proc;
    // PUSCH symbols per thread need to be calculated by how many threads we have
@@ -1448,10 +1478,18 @@ index 0000000000..0dcb3fe40d
 +}
 +
 diff --git a/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h b/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h
-index ca57c9bab3..e8b5a1d9c3 100644
+index ca57c9bab3..4613c56cdd 100644
 --- a/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h
 +++ b/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h
-@@ -233,6 +233,7 @@ typedef struct nrLDPC_slot_encoding_parameters_s{
+@@ -55,6 +55,7 @@ typedef struct nrLDPC_segment_decoding_parameters_s{
+   bool *d_to_be_cleared;
+   uint8_t *c;
+   bool decodeSuccess;
++  uint8_t decodeIterations;
+   time_stats_t ts_deinterleave;
+   time_stats_t ts_rate_unmatch;
+   time_stats_t ts_ldpc_decode;
+@@ -233,6 +234,7 @@ typedef struct nrLDPC_slot_encoding_parameters_s{
  } nrLDPC_slot_encoding_parameters_t;
  
  typedef int32_t(nrLDPC_coding_init_t)(void);
@@ -1459,7 +1497,7 @@ index ca57c9bab3..e8b5a1d9c3 100644
  typedef int32_t(nrLDPC_coding_shutdown_t)(void);
  
  /**
-@@ -249,6 +250,7 @@ typedef int32_t(nrLDPC_coding_encoder_t)(nrLDPC_slot_encoding_parameters_t *nrLD
+@@ -249,6 +251,7 @@ typedef int32_t(nrLDPC_coding_encoder_t)(nrLDPC_slot_encoding_parameters_t *nrLD
  
  typedef struct nrLDPC_coding_interface_s {
    nrLDPC_coding_init_t *nrLDPC_coding_init;
@@ -1506,10 +1544,34 @@ index f96a2cfaca..8e7dd93ad9 100644
  
  #ensure that the T header files are generated before targets depending on them
 diff --git a/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c b/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c
-index 3fece46ac8..826298acd2 100644
+index 3fece46ac8..43d988c29c 100644
 --- a/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c
 +++ b/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c
-@@ -279,18 +279,46 @@ int nrLDPC_prepare_TB_decoding(nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_de
+@@ -112,6 +112,7 @@ typedef struct nrLDPC_decoding_parameters_s {
+   bool *d_to_be_cleared;
+   uint8_t *c;
+   bool *decodeSuccess;
++  uint8_t *decodeIterations;
+ 
+   task_ans_t *ans;
+ 
+@@ -216,6 +217,7 @@ static void nr_process_decode_segment(void *arg)
+ 
+   ////////////////////////////////// pl =====> llrProcBuf //////////////////////////////////
+   int decodeIterations = LDPCdecoder(p_decoderParms, l, llrProcBuf, p_procTime, rdata->abort_decode);
++  *rdata->decodeIterations = decodeIterations;
+ 
+   if (decodeIterations < p_decoderParms->numMaxIter) {
+     memcpy(rdata->c, llrProcBuf, K >> 3);
+@@ -267,6 +269,7 @@ int nrLDPC_prepare_TB_decoding(nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_de
+     rdata->d_to_be_cleared = nrLDPC_TB_decoding_parameters->segments[r].d_to_be_cleared;
+     rdata->c = nrLDPC_TB_decoding_parameters->segments[r].c;
+     rdata->decodeSuccess = &nrLDPC_TB_decoding_parameters->segments[r].decodeSuccess;
++    rdata->decodeIterations = &nrLDPC_TB_decoding_parameters->segments[r].decodeIterations;
+     rdata->p_ts_deinterleave = &nrLDPC_TB_decoding_parameters->segments[r].ts_deinterleave;
+     rdata->p_ts_rate_unmatch = &nrLDPC_TB_decoding_parameters->segments[r].ts_rate_unmatch;
+     rdata->p_ts_ldpc_decode = &nrLDPC_TB_decoding_parameters->segments[r].ts_ldpc_decode;
+@@ -279,18 +282,46 @@ int nrLDPC_prepare_TB_decoding(nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_de
    return nrLDPC_TB_decoding_parameters->C;
  }
  
@@ -1563,7 +1625,7 @@ index 3fece46ac8..826298acd2 100644
    int nbSegments = 0;
    for (int pusch_id = 0; pusch_id < nrLDPC_slot_decoding_parameters->nb_TBs; pusch_id++) {
      nrLDPC_TB_decoding_parameters_t *nrLDPC_TB_decoding_parameters = &nrLDPC_slot_decoding_parameters->TBs[pusch_id];
-@@ -308,6 +336,21 @@ int32_t nrLDPC_coding_decoder(nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_dec
+@@ -308,6 +339,21 @@ int32_t nrLDPC_coding_decoder(nrLDPC_slot_decoding_parameters_t *nrLDPC_slot_dec
    // Execute thread pool tasks
    join_task_ans(t_info.ans);
  
@@ -1812,8 +1874,31 @@ index 76d9b1185f..50aa21c1db 100644
  
    pthread_mutex_lock(&ru->prach_list_mutex);
    ru->prach_list[prach_id].frame = SFN;
+diff --git a/openair1/PHY/NR_TRANSPORT/nr_ulsch_decoding.c b/openair1/PHY/NR_TRANSPORT/nr_ulsch_decoding.c
+index 239b6f2f29..180ab3e5c5 100644
+--- a/openair1/PHY/NR_TRANSPORT/nr_ulsch_decoding.c
++++ b/openair1/PHY/NR_TRANSPORT/nr_ulsch_decoding.c
+@@ -291,6 +291,9 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
+     NR_UL_gNB_HARQ_t *harq_process = ulsch->harq_process;
+ 
+     nrLDPC_TB_decoding_parameters_t TB_parameters = TBs[pusch_id];
++    ulsch->last_ldpc_iterations_sum = 0;
++    ulsch->last_ldpc_segments = TB_parameters.C;
++    ulsch->last_ldpc_time_us = 0.0;
+ 
+     uint32_t offset = 0;
+     for (int r = 0; r < TB_parameters.C; r++) {
+@@ -309,6 +312,8 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
+       merge_meas(&phy_vars_gNB->ts_deinterleave, &nrLDPC_segment_decoding_parameters.ts_deinterleave);
+       merge_meas(&phy_vars_gNB->ts_rate_unmatch, &nrLDPC_segment_decoding_parameters.ts_rate_unmatch);
+       merge_meas(&phy_vars_gNB->ts_ldpc_decode, &nrLDPC_segment_decoding_parameters.ts_ldpc_decode);
++      ulsch->last_ldpc_iterations_sum += nrLDPC_segment_decoding_parameters.decodeIterations;
++      ulsch->last_ldpc_time_us += get_time_meas_us(&nrLDPC_segment_decoding_parameters.ts_ldpc_decode);
+     }
+   }
+ 
 diff --git a/openair1/PHY/NR_TRANSPORT/nr_ulsch_demodulation.c b/openair1/PHY/NR_TRANSPORT/nr_ulsch_demodulation.c
-index bd4ee92284..3de50fb59c 100644
+index bd4ee92284..7d80317a08 100644
 --- a/openair1/PHY/NR_TRANSPORT/nr_ulsch_demodulation.c
 +++ b/openair1/PHY/NR_TRANSPORT/nr_ulsch_demodulation.c
 @@ -3,6 +3,7 @@
@@ -1866,7 +1951,31 @@ index bd4ee92284..3de50fb59c 100644
    simde__m128i *rxdataF_comp128_0 = (simde__m128i *)&rxdataF_comp[0][symbol * buffer_length];
    simde__m128i *rxdataF_comp128_1 = (simde__m128i *)&rxdataF_comp[nb_rx_ant][symbol * buffer_length];
  
-@@ -941,7 +942,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+@@ -911,9 +912,12 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+                      int length,
+                      int symbol,
+                      int output_shift,
+-                     uint32_t nvar,
+-                     c16_t *rxFext_slot,
+-                     c16_t *chFext_slot)
++                      uint32_t nvar,
++                      c16_t *rxFext_slot,
++                      c16_t *chFext_slot,
++                      time_stats_t *resource_extraction_stats,
++                      time_stats_t *channel_compensation_stats,
++                      time_stats_t *llr_stats)
+ {
+   int nb_layer = rel15_ul->nrOfLayers;
+   int nb_rx_ant = frame_parms->nb_antennas_rx;
+@@ -932,6 +936,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+     dmrs_symbol = get_next_dmrs_symbol_in_slot(rel15_ul->ul_dmrs_symb_pos, rel15_ul->start_symbol_index, end_symbol);
+   }
+ 
++  start_meas(resource_extraction_stats);
+   for (int aarx = 0; aarx < nb_rx_ant; aarx++) {
+     for (int aatx = 0; aatx < nb_layer; aatx++) {
+       nr_ulsch_extract_rbs(rxF[aarx],
+@@ -941,7 +946,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
                             soffset+(symbol * frame_parms->ofdm_symbol_size),
                             dmrs_symbol * frame_parms->ofdm_symbol_size,
                             aarx,
@@ -1875,7 +1984,47 @@ index bd4ee92284..3de50fb59c 100644
                             rel15_ul,
                             frame_parms);
  #if T_TRACER
-@@ -1057,6 +1058,7 @@ typedef struct puschSymbolProc_s {
+@@ -956,6 +961,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+ #endif
+     }
+   }
++  stop_meas(resource_extraction_stats);
+   c16_t rho[nb_layer][nb_layer][buffer_length] __attribute__((aligned(32)));
+   c16_t rxF_ch_maga  [nb_layer][buffer_length] __attribute__((aligned(32)));
+   c16_t rxF_ch_magb  [nb_layer][buffer_length] __attribute__((aligned(32)));
+@@ -968,6 +974,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+   for (int i = 0; i < nb_layer; i++)
+     memset(&pusch_vars->rxdataF_comp[i*nb_rx_ant][symbol * buffer_length], 0, sizeof(int32_t) * buffer_length);
+ 
++  start_meas(channel_compensation_stats);
+   nr_ulsch_channel_compensation(buffer_length,
+                                 nb_rx_ant,
+                                 rxFext,
+@@ -981,6 +988,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+                                 rel15_ul,
+                                 symbol,
+                                 output_shift);
++  stop_meas(channel_compensation_stats);
+ 
+   if (nb_layer == 1 && rel15_ul->transform_precoding == transformPrecoder_enabled && rel15_ul->qam_mod_order <= 6) {
+     if (rel15_ul->qam_mod_order > 2)
+@@ -1004,6 +1012,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+     pusch_vars->ul_valid_re_per_slot[symbol] -= pusch_vars->ptrs_re_per_slot;
+   }
+ 
++  start_meas(llr_stats);
+   if (nb_layer == 2) {
+     if (rel15_ul->qam_mod_order <= 6) {
+       nr_ulsch_compute_ML_llr(pusch_vars,
+@@ -1045,6 +1054,7 @@ static void inner_rx(PHY_VARS_gNB *gNB,
+                            pusch_vars->ul_valid_re_per_slot[symbol],
+                            symbol,
+                            rel15_ul->qam_mod_order);
++  stop_meas(llr_stats);
+ }
+ 
+ typedef struct puschSymbolProc_s {
+@@ -1057,11 +1067,15 @@ typedef struct puschSymbolProc_s {
    int numSymbols;
    int16_t *llr;
    int16_t *scramblingSequence;
@@ -1883,7 +2032,15 @@ index bd4ee92284..3de50fb59c 100644
    uint32_t nvar;
    int beam_nb;
    task_ans_t *ans;
-@@ -1073,53 +1075,106 @@ static void nr_pusch_symbol_processing(void *arg)
+   c16_t *pusch_ch_est_dmrs_interpl_slot_mem;
+   c16_t *rxFext_slot_mem;
++  time_stats_t resource_extraction_stats;
++  time_stats_t channel_compensation_stats;
++  time_stats_t llr_stats;
+ } puschSymbolProc_t;
+ 
+ static void nr_pusch_symbol_processing(void *arg)
+@@ -1073,53 +1087,109 @@ static void nr_pusch_symbol_processing(void *arg)
    nfapi_nr_pusch_pdu_t *rel15_ul = rdata->rel15_ul;
    int ulsch_id = rdata->ulsch_id;
    int slot = rdata->slot;
@@ -1973,7 +2130,10 @@ index bd4ee92284..3de50fb59c 100644
 +               gNB->pusch_vars[ulsch_id].log2_maxh,
 +               rdata->nvar,
 +               rdata->rxFext_slot_mem,
-+               rdata->pusch_ch_est_dmrs_interpl_slot_mem);
++               rdata->pusch_ch_est_dmrs_interpl_slot_mem,
++               &rdata->resource_extraction_stats,
++               &rdata->channel_compensation_stats,
++               &rdata->llr_stats);
 +
 +      // layer de-mapping
 +      llr_ptr = llrs[0];
@@ -2018,7 +2178,7 @@ index bd4ee92284..3de50fb59c 100644
    // Task running in // completed
    completed_task_ans(rdata->ans);
  }
-@@ -1204,7 +1259,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1204,7 +1274,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
    for(uint8_t symbol = rel15_ul->start_symbol_index; symbol < end_symbol; symbol++) {
      uint8_t dmrs_symbol_flag = (rel15_ul->ul_dmrs_symb_pos >> symbol) & 0x01;
      LOG_D(PHY, "symbol %d, dmrs_symbol_flag :%d\n", symbol, dmrs_symbol_flag);
@@ -2027,16 +2187,33 @@ index bd4ee92284..3de50fb59c 100644
      if (dmrs_symbol_flag == 1) {
  
        for (int nl = 0; nl < rel15_ul->nrOfLayers; nl++) {
-@@ -1225,7 +1280,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1225,7 +1295,8 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
          nvar += nvar_tmp;
        }
        // measure the SNR from the channel estimation
 -      nr_gnb_measurements(gNB, 
++      start_meas(&gNB->ulsch_channel_measurement_stats);
 +      nr_gnb_measurements(gNB,
                            &gNB->ulsch[ulsch_id],
                            pusch_vars,
                            symbol,
-@@ -1333,7 +1388,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1241,7 +1312,6 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+           pusch_vars->ulsch_power[aarx] = 0;
+           pusch_vars->ulsch_noise_power[aarx] = 0;
+         }
+-
+         int64_t symb_energy = 0;
+         int start_sc = (rel15_ul->bwp_start + rel15_ul->rb_start) * NR_NB_SC_PER_RB;
+         int middle_sc = frame_parms->ofdm_symbol_size - frame_parms->first_carrier_offset;
+@@ -1274,6 +1344,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+               pusch_vars->ulsch_power[aarx],
+               pusch_vars->ulsch_noise_power[aarx]);
+       }
++      stop_meas(&gNB->ulsch_channel_measurement_stats);
+     }
+   }
+ 
+@@ -1333,7 +1404,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
    // first the computation of channel levels
  
    int nb_re_pusch = 0, meas_symbol = -1;
@@ -2045,7 +2222,7 @@ index bd4ee92284..3de50fb59c 100644
      if ((nb_re_pusch = get_nb_re_pusch(frame_parms, rel15_ul, meas_symbol)) > 0)
        break;
  
-@@ -1357,7 +1412,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1357,7 +1428,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
    memset(ul_ch_estimates_ext, 0, sizeof(ul_ch_estimates_ext));
    int buffer_length = rel15_ul->rb_size * NR_NB_SC_PER_RB;
    c16_t temp_rxFext[frame_parms->nb_antennas_rx][buffer_length] __attribute__((aligned(32)));
@@ -2054,7 +2231,7 @@ index bd4ee92284..3de50fb59c 100644
      for (int nl = 0; nl < rel15_ul->nrOfLayers; nl++)
        nr_ulsch_extract_rbs(gNB->common_vars.rxdataF[beam_nb][aarx],
                             (c16_t *)pusch_vars->ul_ch_estimates[nl * frame_parms->nb_antennas_rx + aarx],
-@@ -1366,7 +1421,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1366,7 +1437,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
                             soffset + meas_symbol * frame_parms->ofdm_symbol_size,
                             dmrs_symbol * frame_parms->ofdm_symbol_size,
                             aarx,
@@ -2063,7 +2240,7 @@ index bd4ee92284..3de50fb59c 100644
                             rel15_ul,
                             frame_parms);
  
-@@ -1403,7 +1458,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1403,7 +1474,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
      pusch_vars->log2_maxh = (log2_approx(avgs) >> 1) - 3; // for MMSE
    else if (rel15_ul->nrOfLayers == 2)
      pusch_vars->log2_maxh = (log2_approx(avgs) >> 1) - 2 + log2_approx(frame_parms->nb_antennas_rx >> 1);
@@ -2072,7 +2249,7 @@ index bd4ee92284..3de50fb59c 100644
      pusch_vars->log2_maxh = (log2_approx(avgs) >> 1) + 1 + log2_approx(frame_parms->nb_antennas_rx >> 1);
  
    if (pusch_vars->log2_maxh < 0)
-@@ -1413,6 +1468,13 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1413,6 +1484,13 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
  
    start_meas(&gNB->rx_pusch_symbol_processing_stats);
    int numSymbols = gNB->num_pusch_symbols_per_thread;
@@ -2086,7 +2263,7 @@ index bd4ee92284..3de50fb59c 100644
    int total_res = 0;
    int const loop_iter = CEILIDIV(rel15_ul->nr_of_symbols, numSymbols);
    puschSymbolProc_t arr[loop_iter];
-@@ -1425,8 +1487,8 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+@@ -1425,14 +1503,15 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
      int res_per_task = 0;
      for (int s = 0; s < numSymbols && s + symbol < end_symbol; s++) {
        pusch_vars->ul_valid_re_per_slot[symbol+s] = get_nb_re_pusch(frame_parms,rel15_ul,symbol+s);
@@ -2097,7 +2274,14 @@ index bd4ee92284..3de50fb59c 100644
                                           pusch_vars->llr_offset[symbol+s-1] + pusch_vars->ul_valid_re_per_slot[symbol+s-1] * rel15_ul->qam_mod_order;
        res_per_task += pusch_vars->ul_valid_re_per_slot[symbol + s];
      }
-@@ -1450,6 +1512,8 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+     total_res += res_per_task;
+     if (res_per_task > 0) {
+       puschSymbolProc_t *rdata = &arr[sz_arr];
++      memset(rdata, 0, sizeof(*rdata));
+       rdata->ans = &ans;
+       ++sz_arr;
+ 
+@@ -1450,6 +1529,8 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
        rdata->beam_nb = beam_nb;
        rdata->rxFext_slot_mem = rxFext_slot_mem;
        rdata->pusch_ch_est_dmrs_interpl_slot_mem = pusch_ch_est_dmrs_interpl_slot_mem;
@@ -2106,6 +2290,18 @@ index bd4ee92284..3de50fb59c 100644
  
        if (rel15_ul->pdu_bit_map & PUSCH_PDU_BITMAP_PUSCH_PTRS) {
          nr_pusch_symbol_processing(rdata);
+@@ -1650,6 +1731,11 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
+ #endif
+ 
+   join_task_ans(&ans);
++  for (int i = 0; i < sz_arr; i++) {
++    merge_meas(&gNB->ulsch_resource_extraction_stats, &arr[i].resource_extraction_stats);
++    merge_meas(&gNB->ulsch_channel_compensation_stats, &arr[i].channel_compensation_stats);
++    merge_meas(&gNB->ulsch_llr_stats, &arr[i].llr_stats);
++  }
+   stop_meas(&gNB->rx_pusch_symbol_processing_stats);
+ 
+   // Copy the data to the scope. This cannot be performed in one call to gNBscopeCopy because the data is not contiguous in the
 diff --git a/openair1/PHY/NR_TRANSPORT/nr_ulsch_llr_computation.c b/openair1/PHY/NR_TRANSPORT/nr_ulsch_llr_computation.c
 index 3f4660744d..bd4f56baf6 100644
 --- a/openair1/PHY/NR_TRANSPORT/nr_ulsch_llr_computation.c
@@ -2252,6 +2448,31 @@ index e72465c4a9..0601d728d0 100644
    /// flag to indicate first RX acquisition
    int first_rx;
    /// flag to indicate first TX transmission
+diff --git a/openair1/PHY/defs_gNB.h b/openair1/PHY/defs_gNB.h
+index 987f77d953..8173a65783 100644
+--- a/openair1/PHY/defs_gNB.h
++++ b/openair1/PHY/defs_gNB.h
+@@ -238,6 +238,10 @@ typedef struct {
+   uint8_t max_ldpc_iterations;
+   /// number of iterations used in last LDPC decoding
+   int8_t last_iteration_cnt;
++  /// Per-TB LDPC statistics used by the optional RV64 RFsim CSV exporter.
++  uint32_t last_ldpc_iterations_sum;
++  uint32_t last_ldpc_segments;
++  double last_ldpc_time_us;
+   /// Status Flag indicating for this ULSCH
+   bool active;
+   /// Flag to indicate that the UL configuration has been handled. Used to remove a stale ULSCH when frame wraps around
+@@ -527,6 +531,9 @@ typedef struct PHY_VARS_gNB_s {
+   time_stats_t ulsch_deinterleaving_stats;
+   time_stats_t ulsch_channel_estimation_stats;
+   time_stats_t pusch_channel_estimation_antenna_processing_stats;
++  time_stats_t ulsch_channel_measurement_stats;
++  time_stats_t ulsch_resource_extraction_stats;
++  time_stats_t ulsch_channel_compensation_stats;
+   time_stats_t ulsch_llr_stats;
+   time_stats_t rx_srs_stats;
+   time_stats_t generate_srs_stats;
 diff --git a/openair1/PHY/defs_nr_UE.h b/openair1/PHY/defs_nr_UE.h
 index 9d8683481d..33909c0550 100644
 --- a/openair1/PHY/defs_nr_UE.h
@@ -2267,6 +2488,99 @@ index 9d8683481d..33909c0550 100644
  //#include "openair1/SCHED_NR_UE/defs.h"
  
  #if ENABLE_RAL
+diff --git a/openair1/SCHED_NR/phy_procedures_nr_gNB.c b/openair1/SCHED_NR/phy_procedures_nr_gNB.c
+index 1e33183567..79d38aaf5b 100644
+--- a/openair1/SCHED_NR/phy_procedures_nr_gNB.c
++++ b/openair1/SCHED_NR/phy_procedures_nr_gNB.c
+@@ -41,12 +41,77 @@
+ #include <time.h>
+ #include <sys/time.h>
+ #include <stdint.h>
++#include <stdlib.h>
++#include <pthread.h>
++#include <errno.h>
++#include <string.h>
+ #include <openair1/PHY/TOOLS/phy_scope_interface.h>
+ #include "PHY/log_tools.h"
+ 
+ //#define DEBUG_RXDATA
+ //#define SRS_IND_DEBUG
+ 
++/*
++ * Optional per-transport-block export for the K3 RFsim channel experiment.
++ * It is deliberately controlled by an environment variable so the native
++ * accumulated timing runs have no CSV I/O overhead.
++ */
++static pthread_mutex_t ul_tb_csv_mutex = PTHREAD_MUTEX_INITIALIZER;
++static FILE *ul_tb_csv;
++static uint64_t ul_tb_csv_sequence;
++
++static void export_ul_tb_csv(const NR_gNB_ULSCH_t *ulsch, const NR_gNB_PUSCH *pusch, bool crc_ok)
++{
++  const char *path = getenv("OAI_UL_TB_CSV");
++  if (path == NULL || path[0] == '\0')
++    return;
++
++  const NR_UL_gNB_HARQ_t *harq = ulsch->harq_process;
++  const nfapi_nr_pusch_pdu_t *pdu = &harq->ulsch_pdu;
++  const int signal_x10 = dB_fixed_x10(pusch->ulsch_power_tot);
++  const int noise_x10 = dB_fixed_x10(pusch->ulsch_noise_power_tot);
++  const double iterations_per_cb = ulsch->last_ldpc_segments > 0
++                                       ? (double)ulsch->last_ldpc_iterations_sum / ulsch->last_ldpc_segments
++                                       : 0.0;
++
++  pthread_mutex_lock(&ul_tb_csv_mutex);
++  if (ul_tb_csv == NULL) {
++    ul_tb_csv = fopen(path, "w");
++    if (ul_tb_csv == NULL) {
++      LOG_E(NR_PHY, "Cannot open OAI_UL_TB_CSV=%s: %s\n", path, strerror(errno));
++      pthread_mutex_unlock(&ul_tb_csv_mutex);
++      return;
++    }
++    fprintf(ul_tb_csv,
++            "sequence,frame,slot,rnti,harq_pid,harq_round,rv,rb_size,mcs,qm,tbs_bytes,num_codeblocks,"
++            "ldpc_iterations_sum,ldpc_iterations_per_cb,ldpc_time_us,crc_ok,dtx,signal_db,noise_db,snr_db\n");
++  }
++  fprintf(ul_tb_csv,
++          "%lu,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u,%.6f,%.6f,%u,%d,%.1f,%.1f,%.1f\n",
++          (unsigned long)ul_tb_csv_sequence++,
++          ulsch->frame,
++          ulsch->slot,
++          ulsch->rnti,
++          ulsch->harq_pid,
++          harq->round,
++          pdu->pusch_data.rv_index,
++          pdu->rb_size,
++          pdu->mcs_index,
++          pdu->qam_mod_order,
++          harq->TBS,
++          ulsch->last_ldpc_segments,
++          ulsch->last_ldpc_iterations_sum,
++          iterations_per_cb,
++          ulsch->last_ldpc_time_us,
++          crc_ok,
++          pusch->DTX,
++          signal_x10 / 10.0,
++          noise_x10 / 10.0,
++          (signal_x10 - noise_x10) / 10.0);
++  fflush(ul_tb_csv);
++  pthread_mutex_unlock(&ul_tb_csv_mutex);
++}
++
+ int beam_index_allocation(bool das,
+                           int fapi_beam_index,
+                           nfapi_nr_analog_beamforming_ve_t *analog_bf,
+@@ -492,7 +557,9 @@ static int nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, boo
+ 
+     nfapi_nr_crc_t *crc = &UL_INFO->crc_ind.crc_list[UL_INFO->crc_ind.number_crcs++];
+     nfapi_nr_rx_data_pdu_t *pdu = &UL_INFO->rx_ind.pdu_list[UL_INFO->rx_ind.number_of_pdus++];
+-    if (crc_valid && !check_abort(&ulsch_harq->abort_decode) && !pusch->DTX) {
++    const bool tb_crc_ok = crc_valid && !check_abort(&ulsch_harq->abort_decode) && !pusch->DTX;
++    export_ul_tb_csv(ulsch, pusch, tb_crc_ok);
++    if (tb_crc_ok) {
+       LOG_D(NR_PHY,
+             "[gNB %d] ULSCH %d: Setting ACK for SFN/SF %d.%d (rnti %x, pid %d, ndi %d, status %d, round %d, TBS %d, Max interation "
+             "(all seg) %d)\n",
 diff --git a/openair1/SIMULATION/NR_PHY/BLER_SIMULATIONS/AWGN/AWGN_results/bler_sigma_fit.csv b/openair1/SIMULATION/NR_PHY/BLER_SIMULATIONS/AWGN/AWGN_results/bler_sigma_fit.csv
 new file mode 100644
 index 0000000000..e69de29bb2
